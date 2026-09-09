@@ -6,11 +6,15 @@ import 'package:not_clock/screens/sleep.dart';
 import 'package:not_clock/screens/stopwatch.dart';
 import 'package:not_clock/screens/timers.dart';
 import 'package:not_clock/screens/settings_screen.dart';
+import 'package:not_clock/services/alarm_scheduler.dart';
 
 void main() {
   runApp(const AlarmApp());
 }
 
+/// Global navigator key — allows the alarm scheduler to push screens
+/// (like the firing screen) from outside the widget tree.
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 class AlarmApp extends StatefulWidget {
   const AlarmApp({super.key});
 
@@ -26,6 +30,14 @@ class _AlarmAppState extends State<AlarmApp> {
     super.initState();
     // Load saved settings from disk when app starts
     _settings.loadFromDisk();
+    // Start the alarm scheduler — it checks every second if an alarm should fire
+    AlarmScheduler.start(navigatorKey);
+  }
+
+  @override
+  void dispose() {
+    AlarmScheduler.stop();
+    super.dispose();
   }
 
   @override
@@ -35,6 +47,8 @@ class _AlarmAppState extends State<AlarmApp> {
       child: MaterialApp(
         title: 'Not Clock',
         debugShowCheckedModeBanner: false,
+        // The navigator key lets AlarmScheduler push the firing screen
+        navigatorKey: navigatorKey,
         theme: ThemeData.dark().copyWith(
           scaffoldBackgroundColor: const Color(0xFF0A0A0F),
           colorScheme: const ColorScheme.dark(

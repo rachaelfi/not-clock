@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:not_clock/main.dart';
+import 'package:not_clock/models/alarm_data.dart';
 import 'package:not_clock/models/app_settings.dart';
+import 'package:not_clock/screens/alarm_sub/sound_picker.dart';
+import 'package:not_clock/services/alarm_scheduler.dart';
 
 class SleepScreen extends StatefulWidget {
   const SleepScreen({super.key});
@@ -18,6 +21,10 @@ class _SleepScreenState extends State<SleepScreen>
   bool _isAM = true;
   bool _alarmIsSet = false;
 
+  // Sound and flash settings for the sleep alarm
+  String _selectedSound = 'None';
+  bool _flashEnabled = false;
+
   late FixedExtentScrollController _hourController;
   late FixedExtentScrollController _minuteController;
   late FixedExtentScrollController _amPmController;
@@ -27,7 +34,6 @@ class _SleepScreenState extends State<SleepScreen>
 
   Timer? _updateTimer;
 
-  /// Get current hour in 24h format
   int get _hour24 {
     int h = _selectedHour;
     if (_isAM && _selectedHour == 12) h = 0;
@@ -35,7 +41,6 @@ class _SleepScreenState extends State<SleepScreen>
     return h;
   }
 
-  /// Set time from a 24h hour value
   void _setFromHour24(int hour24) {
     if (hour24 == 0) {
       _selectedHour = 12;
@@ -89,7 +94,6 @@ class _SleepScreenState extends State<SleepScreen>
   Duration _getSleepDuration() {
     final now = DateTime.now();
     int alarmMinute = _selectedMinute * 5;
-
     var alarmTime =
         DateTime(now.year, now.month, now.day, _hour24, alarmMinute);
     if (alarmTime.isBefore(now)) {
@@ -103,9 +107,7 @@ class _SleepScreenState extends State<SleepScreen>
     final hours = duration.inHours;
     final minutes = duration.inMinutes % 60;
     final roundedMin = (minutes / 5).round() * 5;
-    if (roundedMin == 60) {
-      return '${hours + 1} h 00 min';
-    }
+    if (roundedMin == 60) return '${hours + 1} h 00 min';
     return '$hours h ${roundedMin.toString().padLeft(2, '0')} min';
   }
 
@@ -141,6 +143,63 @@ class _SleepScreenState extends State<SleepScreen>
     setState(() {
       _alarmIsSet = !_alarmIsSet;
     });
+
+    // Register or unregister the sleep alarm with the scheduler
+    if (_alarmIsSet) {
+      // Build an AlarmData from the sleep screen's current settings
+      final sleepAlarm = AlarmData(
+        hour: _selectedHour,
+        minute: _selectedMinute * 5, // Convert 5-min index to actual minutes
+        isAM: _isAM,
+        label: 'Sleep',
+        enabled: true,
+        sound: _selectedSound,
+        flashEnabled: _flashEnabled,
+        snoozeEnabled: true,
+        snoozeDurationMinutes: 9,
+      );
+      AlarmScheduler.setSleepAlarm(sleepAlarm);
+      // Listen for when the alarm fires and gets dismissed
+      AlarmScheduler.onSleepAlarmDismissed = () {
+        if (mounted) {
+          setState(() => _alarmIsSet = false);
+        }
+      };
+    } else {
+      // User cancelled the sleep alarm
+      AlarmScheduler.setSleepAlarm(null);
+      AlarmScheduler.onSleepAlarmDismissed = null;
+    }
+  }
+
+  /// Open sound picker for the sleep alarm
+  void _openSoundPicker() async {
+    final result = await Navigator.push<String>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => SoundPickerScreen(
+          selectedSound: _selectedSound,
+          soundType: 'alarms',
+        ),
+      ),
+    );
+    if (result != null) {
+      setState(() => _selectedSound = result);
+      if (_alarmIsSet) {
+        final updatedAlarm = AlarmData(
+          hour: _selectedHour,
+          minute: _selectedMinute * 5,
+          isAM: _isAM,
+          label: 'Sleep',
+          enabled: true,
+          sound: _selectedSound,
+          flashEnabled: _flashEnabled,
+          snoozeEnabled: true,
+          snoozeDurationMinutes: 9,
+        );
+        AlarmScheduler.setSleepAlarm(updatedAlarm);
+      }
+    }
   }
 
   @override
@@ -156,15 +215,9 @@ class _SleepScreenState extends State<SleepScreen>
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
-                  'Sleep',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 32,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -0.5,
-                  ),
-                ),
+                const Text('Sleep',
+                    style: TextStyle(color: Colors.white, fontSize: 32,
+                        fontWeight: FontWeight.w700, letterSpacing: -0.5)),
                 const SettingsGearButton(),
               ],
             ),
@@ -176,13 +229,11 @@ class _SleepScreenState extends State<SleepScreen>
               builder: (context, child) {
                 return Container(
                   width: double.infinity,
-                  padding:
-                      const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
+                  padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(20),
                     gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
+                      begin: Alignment.topLeft, end: Alignment.bottomRight,
                       colors: [
                         const Color(0xFF6C5CE7).withValues(alpha: 0.15),
                         const Color(0xFF6C5CE7).withValues(alpha: 0.05),
@@ -232,7 +283,90 @@ class _SleepScreenState extends State<SleepScreen>
               },
             ),
 
-            const SizedBox(height: 32),
+            const SizedBox(height: 12),
+
+            // ── Sound picker button + Flash toggle row ──
+            Row(
+              children: [
+                // Sound picker button (circular, left-aligned)
+                GestureDetector(
+                  onTap: _openSoundPicker,
+                  child: Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: const Color(0xFF6C5CE7).withValues(alpha: 0.15),
+                      border: Border.all(
+                        color: const Color(0xFF6C5CE7).withValues(alpha: 0.3),
+                        width: 1,
+                      ),
+                    ),
+                    child: Icon(
+                      _selectedSound == 'None'
+                          ? Icons.volume_off
+                          : Icons.music_note,
+                      color: const Color(0xFFA29BFE),
+                      size: 20,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                // Show selected sound name
+                Expanded(
+                  child: Text(
+                    _selectedSound == 'None'
+                        ? 'No sound'
+                        : soundDisplayName(_selectedSound),
+                    style: const TextStyle(
+                        color: Color(0xFF6A6A7A), fontSize: 13),
+                  ),
+                ),
+                // Flash toggle
+                GestureDetector(
+                  onTap: () => setState(() => _flashEnabled = !_flashEnabled),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(20),
+                      color: _flashEnabled
+                          ? const Color(0xFF6C5CE7).withValues(alpha: 0.25)
+                          : const Color(0xFF1A1A24),
+                      border: Border.all(
+                        color: _flashEnabled
+                            ? const Color(0xFF6C5CE7).withValues(alpha: 0.4)
+                            : const Color(0xFF2A2A3A),
+                        width: 1,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.flash_on,
+                          color: _flashEnabled
+                              ? const Color(0xFFA29BFE)
+                              : const Color(0xFF4A4A5A),
+                          size: 16,
+                        ),
+                        const SizedBox(width: 4),
+                        Text('Flash',
+                            style: TextStyle(
+                              color: _flashEnabled
+                                  ? const Color(0xFFA29BFE)
+                                  : const Color(0xFF4A4A5A),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                            )),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 20),
             Expanded(child: _buildTimePicker(settings)),
             _buildQuickSleepButtons(),
             const SizedBox(height: 16),
@@ -264,32 +398,19 @@ class _SleepScreenState extends State<SleepScreen>
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Hour wheel
             SizedBox(
-              width: 80,
-              height: 220,
+              width: 80, height: 220,
               child: is24h ? _build24HourWheel() : _build12HourWheel(),
             ),
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 4),
-              child: Text(':',
-                  style: TextStyle(color: Color(0xFF6C5CE7),
-                      fontSize: 32, fontWeight: FontWeight.w300)),
+              child: Text(':', style: TextStyle(color: Color(0xFF6C5CE7),
+                  fontSize: 32, fontWeight: FontWeight.w300)),
             ),
-            // Minute wheel (5-min increments, same for both modes)
-            SizedBox(
-              width: 80,
-              height: 220,
-              child: _buildMinuteWheel(),
-            ),
-            // AM/PM wheel (only in 12h mode)
+            SizedBox(width: 80, height: 220, child: _buildMinuteWheel()),
             if (!is24h) ...[
               const SizedBox(width: 12),
-              SizedBox(
-                width: 60,
-                height: 220,
-                child: _buildAmPmWheel(),
-              ),
+              SizedBox(width: 60, height: 220, child: _buildAmPmWheel()),
             ],
           ],
         ),
@@ -298,127 +419,102 @@ class _SleepScreenState extends State<SleepScreen>
   }
 
   Widget _build24HourWheel() {
-    return ListWheelScrollView.useDelegate(
+    return IgnorePointer(
+      ignoring: _alarmIsSet, // Locked when alarm is set
+      child: ListWheelScrollView.useDelegate(
       controller: _hourController,
-      itemExtent: 52,
-      perspective: 0.003,
-      diameterRatio: 1.5,
+      itemExtent: 52, perspective: 0.003, diameterRatio: 1.5,
       physics: const FixedExtentScrollPhysics(),
-      onSelectedItemChanged: (index) {
-        setState(() => _setFromHour24(index));
-      },
+      onSelectedItemChanged: (index) => setState(() => _setFromHour24(index)),
       childDelegate: ListWheelChildBuilderDelegate(
         builder: (context, index) {
           if (index < 0 || index > 23) return null;
           final isSelected = index == _hour24;
-          return Center(
-            child: Text(
-              index.toString().padLeft(2, '0'),
+          return Center(child: Text(index.toString().padLeft(2, '0'),
               style: TextStyle(
                 color: isSelected ? Colors.white : const Color(0xFF4A4A5A),
                 fontSize: isSelected ? 32 : 24,
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.w300,
-              ),
-            ),
-          );
+              )));
         },
         childCount: 24,
       ),
-    );
+    ));
   }
 
   Widget _build12HourWheel() {
-    return ListWheelScrollView.useDelegate(
+    return IgnorePointer(
+      ignoring: _alarmIsSet, // Locked when alarm is set
+      child: ListWheelScrollView.useDelegate(
       controller: _hourController,
-      itemExtent: 52,
-      perspective: 0.003,
-      diameterRatio: 1.5,
+      itemExtent: 52, perspective: 0.003, diameterRatio: 1.5,
       physics: const FixedExtentScrollPhysics(),
-      onSelectedItemChanged: (index) {
-        setState(() => _selectedHour = index + 1);
-      },
+      onSelectedItemChanged: (index) => setState(() => _selectedHour = index + 1),
       childDelegate: ListWheelChildBuilderDelegate(
         builder: (context, index) {
           if (index < 0 || index > 11) return null;
           final hour = index + 1;
           final isSelected = hour == _selectedHour;
-          return Center(
-            child: Text(
-              hour.toString(),
+          return Center(child: Text(hour.toString(),
               style: TextStyle(
                 color: isSelected ? Colors.white : const Color(0xFF4A4A5A),
                 fontSize: isSelected ? 32 : 24,
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.w300,
-              ),
-            ),
-          );
+              )));
         },
         childCount: 12,
       ),
-    );
+    ));
   }
 
   Widget _buildMinuteWheel() {
-    return ListWheelScrollView.useDelegate(
+    return IgnorePointer(
+      ignoring: _alarmIsSet, // Locked when alarm is set
+      child: ListWheelScrollView.useDelegate(
       controller: _minuteController,
-      itemExtent: 52,
-      perspective: 0.003,
-      diameterRatio: 1.5,
+      itemExtent: 52, perspective: 0.003, diameterRatio: 1.5,
       physics: const FixedExtentScrollPhysics(),
-      onSelectedItemChanged: (index) {
-        setState(() => _selectedMinute = index);
-      },
+      onSelectedItemChanged: (index) => setState(() => _selectedMinute = index),
       childDelegate: ListWheelChildBuilderDelegate(
         builder: (context, index) {
           if (index < 0 || index > 11) return null;
           final minute = index * 5;
           final isSelected = index == _selectedMinute;
-          return Center(
-            child: Text(
-              minute.toString().padLeft(2, '0'),
+          return Center(child: Text(minute.toString().padLeft(2, '0'),
               style: TextStyle(
                 color: isSelected ? Colors.white : const Color(0xFF4A4A5A),
                 fontSize: isSelected ? 32 : 24,
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.w300,
-              ),
-            ),
-          );
+              )));
         },
         childCount: 12,
       ),
-    );
+    ));
   }
 
   Widget _buildAmPmWheel() {
-    return ListWheelScrollView.useDelegate(
-      controller: _amPmController,
-      itemExtent: 52,
-      perspective: 0.003,
-      diameterRatio: 1.5,
-      physics: const FixedExtentScrollPhysics(),
-      onSelectedItemChanged: (index) {
-        setState(() => _isAM = index == 0);
-      },
-      childDelegate: ListWheelChildBuilderDelegate(
-        builder: (context, index) {
+    return IgnorePointer(
+      ignoring: _alarmIsSet, // Locked when alarm is set
+      child: ListWheelScrollView.useDelegate(
+        controller: _amPmController,
+        itemExtent: 52, perspective: 0.003, diameterRatio: 1.5,
+        physics: const FixedExtentScrollPhysics(),
+        onSelectedItemChanged: (index) => setState(() => _isAM = index == 0),
+        childDelegate: ListWheelChildBuilderDelegate(
+          builder: (context, index) {
           if (index < 0 || index > 1) return null;
           final label = index == 0 ? 'AM' : 'PM';
           final isSelected = (index == 0) == _isAM;
-          return Center(
-            child: Text(
-              label,
+          return Center(child: Text(label,
               style: TextStyle(
-                color: isSelected
-                    ? const Color(0xFFA29BFE) : const Color(0xFF4A4A5A),
+                color: isSelected ? const Color(0xFFA29BFE) : const Color(0xFF4A4A5A),
                 fontSize: isSelected ? 20 : 16,
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-              ),
-            ),
-          );
+              )));
         },
         childCount: 2,
       ),
-    );
+    ));
   }
 
   Widget _buildQuickSleepButtons() {
@@ -431,14 +527,10 @@ class _SleepScreenState extends State<SleepScreen>
         const SizedBox(height: 10),
         Row(
           children: [
-            _quickButton('6h', 6),
-            const SizedBox(width: 10),
-            _quickButton('7h', 7),
-            const SizedBox(width: 10),
-            _quickButton('7.5h', 7.5),
-            const SizedBox(width: 10),
-            _quickButton('8h', 8),
-            const SizedBox(width: 10),
+            _quickButton('6h', 6), const SizedBox(width: 10),
+            _quickButton('7h', 7), const SizedBox(width: 10),
+            _quickButton('7.5h', 7.5), const SizedBox(width: 10),
+            _quickButton('8h', 8), const SizedBox(width: 10),
             _quickButton('9h', 9),
           ],
         ),
@@ -457,11 +549,9 @@ class _SleepScreenState extends State<SleepScreen>
             color: const Color(0xFF1A1A24),
             border: Border.all(color: const Color(0xFF2A2A3A), width: 1),
           ),
-          child: Center(
-            child: Text(label,
-                style: const TextStyle(color: Color(0xFFA29BFE),
-                    fontSize: 14, fontWeight: FontWeight.w600)),
-          ),
+          child: Center(child: Text(label,
+              style: const TextStyle(color: Color(0xFFA29BFE),
+                  fontSize: 14, fontWeight: FontWeight.w600))),
         ),
       ),
     );
@@ -477,8 +567,7 @@ class _SleepScreenState extends State<SleepScreen>
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
           gradient: _alarmIsSet
-              ? const LinearGradient(
-                  colors: [Color(0xFF3A3545), Color(0xFF2A2535)])
+              ? const LinearGradient(colors: [Color(0xFF3A3545), Color(0xFF2A2535)])
               : const LinearGradient(
                   begin: Alignment.topLeft, end: Alignment.bottomRight,
                   colors: [Color(0xFF6C5CE7), Color(0xFF5A4BD1)]),

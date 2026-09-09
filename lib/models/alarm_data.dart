@@ -9,6 +9,7 @@ class AlarmData {
   String? customSoundPath;
   bool snoozeEnabled;
   int snoozeDurationMinutes;
+  bool flashEnabled;
 
   AlarmData({
     required this.hour,
@@ -17,10 +18,11 @@ class AlarmData {
     this.label = 'Alarm',
     this.enabled = true,
     List<int>? repeatDays,
-    this.sound = 'Radar',
+    this.sound = 'None',
     this.customSoundPath,
     this.snoozeEnabled = true,
     this.snoozeDurationMinutes = 9,
+    this.flashEnabled = false,
   }) : repeatDays = repeatDays ?? [];
 
   String get timeString {
@@ -86,6 +88,7 @@ class AlarmData {
       customSoundPath: customSoundPath,
       snoozeEnabled: snoozeEnabled,
       snoozeDurationMinutes: snoozeDurationMinutes,
+      flashEnabled: flashEnabled,
     );
   }
 
@@ -103,6 +106,7 @@ class AlarmData {
       'customSoundPath': customSoundPath,
       'snoozeEnabled': snoozeEnabled,
       'snoozeDurationMinutes': snoozeDurationMinutes,
+      'flashEnabled': flashEnabled,
     };
   }
 
@@ -123,33 +127,21 @@ class AlarmData {
       customSoundPath: json['customSoundPath'] as String?,
       snoozeEnabled: json['snoozeEnabled'] as bool? ?? true,
       snoozeDurationMinutes: json['snoozeDurationMinutes'] as int? ?? 9,
+      flashEnabled: json['flashEnabled'] as bool? ?? false,
     );
   }
 }
 
-const List<String> builtInSounds = [
-  'Radar',
-  'Beacon',
-  'Chimes',
-  'Circuit',
-  'Constellation',
-  'Cosmic',
-  'Crystals',
-  'Hillside',
-  'Illuminate',
-  'Night Owl',
-  'Opening',
-  'Playtime',
-  'Presto',
-  'Radiate',
-  'Ripples',
-  'Sencha',
-  'Signal',
-  'Silk',
-  'Slow Rise',
-  'Stargaze',
-  'Summit',
-  'Twinkle',
-  'Uplift',
-  'Waves',
-];
+/// Converts a filename like "my_cool_alarm.mp3" into a display name
+/// like "My Cool Alarm". Strips the extension and replaces underscores/hyphens.
+String soundDisplayName(String filename) {
+  // Remove extension
+  final name = filename.replaceAll(RegExp(r'\.(mp3|wav|m4a|ogg)$', caseSensitive: false), '');
+  // Replace underscores and hyphens with spaces
+  final spaced = name.replaceAll(RegExp(r'[_-]'), ' ');
+  // Capitalize each word
+  return spaced.split(' ').map((word) {
+    if (word.isEmpty) return word;
+    return word[0].toUpperCase() + word.substring(1).toLowerCase();
+  }).join(' ');
+}
