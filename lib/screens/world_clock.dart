@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:not_clock/main.dart';
 import 'package:not_clock/models/app_settings.dart';
 import 'package:not_clock/models/world_clock_city.dart';
+import 'package:not_clock/theme/app_theme.dart';
 import 'package:not_clock/services/time_now_service.dart';
 import 'package:not_clock/services/storage_service.dart';
 import 'package:not_clock/screens/world_clock_sub/city_search.dart';
@@ -183,7 +184,7 @@ class _WorldClockScreenState extends State<WorldClockScreen> {
   }
 
   void _addClock() async {
-    final settings = SettingsProvider.of(context);
+    final settings = SettingsProvider.read(context);
     final result = await Navigator.push<WorldClockCity>(
       context,
       MaterialPageRoute(
@@ -220,6 +221,7 @@ class _WorldClockScreenState extends State<WorldClockScreen> {
   @override
   Widget build(BuildContext context) {
     final settings = SettingsProvider.of(context);
+    final c = settings.colors;
 
     return SafeArea(
       child: Padding(
@@ -230,8 +232,8 @@ class _WorldClockScreenState extends State<WorldClockScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('World Clock',
-                    style: TextStyle(color: Colors.white, fontSize: 32,
+                Text('World Clock',
+                    style: TextStyle(color: c.text, fontSize: 32,
                         fontWeight: FontWeight.w700)),
                 Row(
                   children: [
@@ -242,12 +244,12 @@ class _WorldClockScreenState extends State<WorldClockScreen> {
                           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                           decoration: BoxDecoration(
                             color: _isEditing
-                                ? const Color(0xFF6C5CE7).withValues(alpha: 0.25)
-                                : const Color(0xFF6C5CE7).withValues(alpha: 0.15),
+                                ? c.accentWash(0.25)
+                                : c.accentWash(0.15),
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: Text(_isEditing ? 'Done' : 'Edit',
-                              style: const TextStyle(color: Color(0xFFA29BFE),
+                              style: TextStyle(color: c.accentSoft,
                                   fontSize: 14, fontWeight: FontWeight.w500)),
                         ),
                       ),
@@ -258,10 +260,10 @@ class _WorldClockScreenState extends State<WorldClockScreen> {
                         child: Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF6C5CE7).withValues(alpha: 0.15),
+                            color: c.accentWash(0.15),
                             borderRadius: BorderRadius.circular(10),
                           ),
-                          child: const Icon(Icons.add, color: Color(0xFFA29BFE), size: 24),
+                          child: Icon(Icons.add, color: c.accentSoft, size: 24),
                         ),
                       ),
                     if (!_isEditing) const SizedBox(width: 10),
@@ -271,12 +273,12 @@ class _WorldClockScreenState extends State<WorldClockScreen> {
               ],
             ),
             const SizedBox(height: 28),
-            _buildLocalTimeSection(settings),
+            _buildLocalTimeSection(settings, c),
             const SizedBox(height: 24),
             Expanded(
               child: _addedClocks.isEmpty
-                  ? _buildEmptyState()
-                  : _buildClocksList(settings),
+                  ? _buildEmptyState(c)
+                  : _buildClocksList(settings, c),
             ),
           ],
         ),
@@ -284,7 +286,7 @@ class _WorldClockScreenState extends State<WorldClockScreen> {
     );
   }
 
-  Widget _buildLocalTimeSection(AppSettings settings) {
+  Widget _buildLocalTimeSection(AppSettings settings, AppColors c) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 24),
@@ -292,34 +294,30 @@ class _WorldClockScreenState extends State<WorldClockScreen> {
         borderRadius: BorderRadius.circular(20),
         gradient: LinearGradient(
           begin: Alignment.topLeft, end: Alignment.bottomRight,
-          colors: [
-            const Color(0xFF6C5CE7).withValues(alpha: 0.12),
-            const Color(0xFF6C5CE7).withValues(alpha: 0.04),
-          ],
+          colors: [c.accentWash(0.12), c.accentWash(0.04)],
         ),
-        border: Border.all(
-            color: const Color(0xFF6C5CE7).withValues(alpha: 0.2), width: 1),
+        border: Border.all(color: c.accentWash(0.2), width: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Icon(Icons.my_location, color: Color(0xFFA29BFE), size: 14),
+              Icon(Icons.my_location, color: c.accentSoft, size: 14),
               const SizedBox(width: 6),
-              const Text('MY LOCATION',
-                  style: TextStyle(color: Color(0xFF8A85A0), fontSize: 11,
+              Text('MY LOCATION',
+                  style: TextStyle(color: c.subtext, fontSize: 11,
                       fontWeight: FontWeight.w500, letterSpacing: 1.5)),
               if (_localAbbreviation.isNotEmpty) ...[
                 const SizedBox(width: 8),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF6C5CE7).withValues(alpha: 0.15),
+                    color: c.accentWash(0.15),
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(_localAbbreviation,
-                      style: const TextStyle(color: Color(0xFFA29BFE), fontSize: 10,
+                      style: TextStyle(color: c.accentSoft, fontSize: 10,
                           fontWeight: FontWeight.w600, letterSpacing: 0.5)),
                 ),
               ],
@@ -328,11 +326,11 @@ class _WorldClockScreenState extends State<WorldClockScreen> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFFD93D).withValues(alpha: 0.15),
+                    color: c.warning.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(4),
                   ),
-                  child: const Text('DST',
-                      style: TextStyle(color: Color(0xFFFFD93D), fontSize: 10,
+                  child: Text('DST',
+                      style: TextStyle(color: c.warning, fontSize: 10,
                           fontWeight: FontWeight.w600)),
                 ),
               ],
@@ -340,58 +338,59 @@ class _WorldClockScreenState extends State<WorldClockScreen> {
           ),
           const SizedBox(height: 12),
           _isLoadingLocal
-              ? const SizedBox(height: 52, child: Center(
+              ? SizedBox(height: 52, child: Center(
                   child: SizedBox(width: 24, height: 24,
                       child: CircularProgressIndicator(
-                          color: Color(0xFF6C5CE7), strokeWidth: 2))))
+                          color: c.accent, strokeWidth: 2))))
               : Text(_localTimeString(settings),
-                  style: const TextStyle(color: Colors.white, fontSize: 44,
+                  style: TextStyle(color: c.text, fontSize: 44,
                       fontWeight: FontWeight.w200, letterSpacing: 1.0)),
           const SizedBox(height: 6),
           Text(_localTimezoneName.replaceAll('_', ' ').replaceAll('/', ' / '),
-              style: const TextStyle(color: Color(0xFFA29BFE), fontSize: 16,
+              style: TextStyle(color: c.accentSoft, fontSize: 16,
                   fontWeight: FontWeight.w400)),
           const SizedBox(height: 4),
           Text(_localDateString,
-              style: const TextStyle(color: Color(0xFF6A6A7A), fontSize: 13,
+              style: TextStyle(color: c.subtext, fontSize: 13,
                   fontWeight: FontWeight.w400)),
         ],
       ),
     );
   }
 
-  Widget _buildEmptyState() {
+  Widget _buildEmptyState(AppColors c) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.language, size: 48, color: Colors.white.withValues(alpha: 0.1)),
+          Icon(Icons.language, size: 48, color: c.muted),
           const SizedBox(height: 12),
           Text('Tap + to add a city',
-              style: TextStyle(color: Colors.white.withValues(alpha: 0.25), fontSize: 15)),
+              style: TextStyle(color: c.subtext, fontSize: 15)),
         ],
       ),
     );
   }
 
-  Widget _buildClocksList(AppSettings settings) {
+  Widget _buildClocksList(AppSettings settings, AppColors c) {
     return ListView.separated(
       itemCount: _addedClocks.length,
       separatorBuilder: (_, __) => const SizedBox(height: 10),
       itemBuilder: (context, index) =>
-          _buildClockCard(_addedClocks[index], index, settings),
+          _buildClockCard(_addedClocks[index], index, settings, c),
     );
   }
 
-  Widget _buildClockCard(WorldClockCity city, int index, AppSettings settings) {
+  Widget _buildClockCard(
+      WorldClockCity city, int index, AppSettings settings, AppColors c) {
     final offsetStr = city.offsetStringFrom(_localOffsetMinutes);
 
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
       decoration: BoxDecoration(
-        color: const Color(0xFF14141E),
+        color: c.card,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF1E1E2E), width: 1),
+        border: Border.all(color: c.divider, width: 1),
       ),
       child: Row(
         children: [
@@ -400,9 +399,9 @@ class _WorldClockScreenState extends State<WorldClockScreen> {
               onTap: () => _removeClock(index),
               child: Container(
                 width: 28, height: 28,
-                decoration: const BoxDecoration(
-                    color: Color(0xFFFF6B6B), shape: BoxShape.circle),
-                child: const Icon(Icons.remove, color: Colors.white, size: 18),
+                decoration: BoxDecoration(
+                    color: c.danger, shape: BoxShape.circle),
+                child: Icon(Icons.remove, color: c.onDanger, size: 18),
               ),
             ),
             const SizedBox(width: 14),
@@ -414,18 +413,18 @@ class _WorldClockScreenState extends State<WorldClockScreen> {
                 Row(
                   children: [
                     Text(offsetStr,
-                        style: const TextStyle(color: Color(0xFF6A6A7A), fontSize: 12,
+                        style: TextStyle(color: c.subtext, fontSize: 12,
                             fontWeight: FontWeight.w500, letterSpacing: 0.5)),
                     if (city.dst) ...[
                       const SizedBox(width: 6),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFFFD93D).withValues(alpha: 0.15),
+                          color: c.warning.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(3),
                         ),
-                        child: const Text('DST',
-                            style: TextStyle(color: Color(0xFFFFD93D), fontSize: 9,
+                        child: Text('DST',
+                            style: TextStyle(color: c.warning, fontSize: 9,
                                 fontWeight: FontWeight.w600)),
                       ),
                     ],
@@ -433,15 +432,15 @@ class _WorldClockScreenState extends State<WorldClockScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(city.name,
-                    style: const TextStyle(color: Colors.white, fontSize: 18,
+                    style: TextStyle(color: c.text, fontSize: 18,
                         fontWeight: FontWeight.w500)),
                 Row(
                   children: [
                     Text(city.country,
-                        style: const TextStyle(color: Color(0xFF4A4A5A), fontSize: 12)),
+                        style: TextStyle(color: c.muted, fontSize: 12)),
                     if (city.abbreviation.isNotEmpty)
                       Text('  ·  ${city.abbreviation}',
-                          style: const TextStyle(color: Color(0xFF4A4A5A), fontSize: 12)),
+                          style: TextStyle(color: c.muted, fontSize: 12)),
                   ],
                 ),
               ],
@@ -451,7 +450,7 @@ class _WorldClockScreenState extends State<WorldClockScreen> {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(city.formattedTime(settings),
-                  style: const TextStyle(color: Colors.white, fontSize: 28,
+                  style: TextStyle(color: c.text, fontSize: 28,
                       fontWeight: FontWeight.w300)),
               const SizedBox(height: 2),
               Row(
@@ -459,16 +458,15 @@ class _WorldClockScreenState extends State<WorldClockScreen> {
                 children: [
                   Icon(
                     city.isDaytime ? Icons.wb_sunny_outlined : Icons.nightlight_round,
-                    color: city.isDaytime
-                        ? const Color(0xFFFFD93D) : const Color(0xFFA29BFE),
+                    color: city.isDaytime ? c.warning : c.accentSoft,
                     size: 12,
                   ),
                   const SizedBox(width: 4),
                   Text(city.isDaytime ? 'Day' : 'Night',
                       style: TextStyle(
                         color: city.isDaytime
-                            ? const Color(0xFFFFD93D).withValues(alpha: 0.7)
-                            : const Color(0xFFA29BFE).withValues(alpha: 0.7),
+                            ? c.warning.withValues(alpha: 0.7)
+                            : c.accentSoft.withValues(alpha: 0.7),
                         fontSize: 11, fontWeight: FontWeight.w400,
                       )),
                 ],

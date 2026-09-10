@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:not_clock/main.dart';
 import 'package:not_clock/models/app_settings.dart';
 import 'package:not_clock/models/world_clock_city.dart';
 import 'package:not_clock/services/time_now_service.dart';
@@ -78,20 +79,23 @@ class _CitySearchScreenState extends State<CitySearchScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Subscribes to settings so the screen restyles live if the theme changes.
+    final c = SettingsProvider.of(context).colors;
+
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0A0F),
+      backgroundColor: c.background,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF0A0A0F),
+        backgroundColor: c.background,
         elevation: 0,
         leading: GestureDetector(
           onTap: () => Navigator.pop(context),
-          child: const Padding(
-            padding: EdgeInsets.all(12),
-            child: Icon(Icons.arrow_back_ios, color: Color(0xFFA29BFE), size: 20),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Icon(Icons.arrow_back_ios, color: c.accentSoft, size: 20),
           ),
         ),
-        title: const Text('Choose a City',
-            style: TextStyle(color: Colors.white, fontSize: 17,
+        title: Text('Choose a City',
+            style: TextStyle(color: c.text, fontSize: 17,
                 fontWeight: FontWeight.w600)),
         centerTitle: true,
       ),
@@ -103,20 +107,19 @@ class _CitySearchScreenState extends State<CitySearchScreen> {
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
                 child: Container(
                   decoration: BoxDecoration(
-                    color: const Color(0xFF1A1A24),
+                    color: c.card,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: TextField(
                     controller: _searchController,
                     onChanged: _filter,
                     autofocus: true,
-                    style: const TextStyle(color: Colors.white, fontSize: 16),
-                    cursorColor: const Color(0xFF6C5CE7),
+                    style: TextStyle(color: c.text, fontSize: 16),
+                    cursorColor: c.accent,
                     decoration: InputDecoration(
                       hintText: 'Search cities...',
-                      hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.3)),
-                      prefixIcon: Icon(Icons.search,
-                          color: Colors.white.withValues(alpha: 0.3), size: 20),
+                      hintStyle: TextStyle(color: c.muted),
+                      prefixIcon: Icon(Icons.search, color: c.muted, size: 20),
                       border: InputBorder.none,
                       contentPadding: const EdgeInsets.symmetric(
                           horizontal: 16, vertical: 14),
@@ -128,16 +131,14 @@ class _CitySearchScreenState extends State<CitySearchScreen> {
                 child: _filteredCities.isEmpty
                     ? Center(
                         child: Text('No cities found',
-                            style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.3),
-                                fontSize: 16)),
+                            style: TextStyle(color: c.subtext, fontSize: 16)),
                       )
                     : ListView.separated(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         itemCount: _filteredCities.length,
-                        separatorBuilder: (_, __) => const Padding(
-                          padding: EdgeInsets.only(left: 16),
-                          child: Divider(color: Color(0xFF1E1E2E), height: 1),
+                        separatorBuilder: (_, __) => Padding(
+                          padding: const EdgeInsets.only(left: 16),
+                          child: Divider(color: c.divider, height: 1),
                         ),
                         itemBuilder: (context, index) {
                           final city = _filteredCities[index];
@@ -155,19 +156,19 @@ class _CitySearchScreenState extends State<CitySearchScreen> {
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
                                         Text(city.name,
-                                            style: const TextStyle(
-                                                color: Colors.white, fontSize: 16)),
+                                            style: TextStyle(
+                                                color: c.text, fontSize: 16)),
                                         const SizedBox(height: 2),
                                         Text(city.country,
-                                            style: const TextStyle(
-                                                color: Color(0xFF6A6A7A),
+                                            style: TextStyle(
+                                                color: c.subtext,
                                                 fontSize: 13)),
                                       ],
                                     ),
                                   ),
                                   Text(city.formattedTime(widget.settings),
-                                      style: const TextStyle(
-                                          color: Color(0xFF6A6A7A), fontSize: 14)),
+                                      style: TextStyle(
+                                          color: c.subtext, fontSize: 14)),
                                 ],
                               ),
                             ),
@@ -179,17 +180,17 @@ class _CitySearchScreenState extends State<CitySearchScreen> {
           ),
           if (_isFetchingCity)
             Container(
-              color: const Color(0xFF0A0A0F).withValues(alpha: 0.7),
-              child: const Center(
+              color: c.background.withValues(alpha: 0.7),
+              child: Center(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     SizedBox(width: 28, height: 28,
                         child: CircularProgressIndicator(
-                            color: Color(0xFF6C5CE7), strokeWidth: 2)),
-                    SizedBox(height: 12),
+                            color: c.accent, strokeWidth: 2)),
+                    const SizedBox(height: 12),
                     Text('Fetching time...',
-                        style: TextStyle(color: Color(0xFF8A85A0), fontSize: 14)),
+                        style: TextStyle(color: c.subtext, fontSize: 14)),
                   ],
                 ),
               ),

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:not_clock/main.dart';
 import 'package:not_clock/models/alarm_data.dart';
 import 'package:not_clock/services/audio_service.dart';
 
@@ -87,30 +88,26 @@ class _AlarmFiringScreenState extends State<AlarmFiringScreen>
 
   void _dismiss() {
     AudioService.stop(); // Stop the alarm sound
-    widget.onDismiss();
-    Navigator.pop(context);
+    Navigator.pop(context); // Pop FIRST so the screen always closes on one tap
+    widget.onDismiss(); // Then run cleanup
   }
 
   void _snooze() {
     AudioService.stop(); // Stop the alarm sound
-    widget.onSnooze(widget.alarm.snoozeDurationMinutes);
     Navigator.pop(context);
-  }
-
-  String get _currentTimeString {
-    final now = DateTime.now();
-    int hour = now.hour;
-    final minute = now.minute.toString().padLeft(2, '0');
-    final period = hour >= 12 ? 'PM' : 'AM';
-    if (hour == 0) hour = 12;
-    if (hour > 12) hour -= 12;
-    return '$hour:$minute $period';
+    widget.onSnooze(widget.alarm.snoozeDurationMinutes);
   }
 
   @override
   Widget build(BuildContext context) {
+    final settings = SettingsProvider.of(context);
+    final c = settings.colors;
+    final now = DateTime.now();
+    // Respects the 24-hour setting, which the old hardcoded formatter didn't.
+    final currentTimeString = settings.formatTime(now.hour, now.minute);
+
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0A0F),
+      backgroundColor: c.background,
       body: Stack(
         children: [
           // ── Flash overlay (white screen that pulses) ──
@@ -119,7 +116,8 @@ class _AlarmFiringScreenState extends State<AlarmFiringScreen>
               animation: _flashAnimation,
               builder: (context, child) {
                 return Container(
-                  color: Colors.white.withValues(alpha: _flashAnimation.value * 0.85),
+                  color: Colors.white
+                      .withValues(alpha: _flashAnimation.value * 0.85),
                 );
               },
             ),
@@ -140,17 +138,14 @@ class _AlarmFiringScreenState extends State<AlarmFiringScreen>
                       height: 80,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: const Color(0xFF6C5CE7).withValues(alpha: 0.2),
-                        border: Border.all(
-                          color: const Color(0xFF6C5CE7).withValues(alpha: 0.4),
-                          width: 2,
-                        ),
+                        color: c.accentWash(0.2),
+                        border: Border.all(color: c.accentWash(0.4), width: 2),
                       ),
                       child: Icon(
                         widget.isFromSleep
                             ? Icons.bedtime_rounded
                             : Icons.alarm,
-                        color: const Color(0xFFA29BFE),
+                        color: c.accentSoft,
                         size: 36,
                       ),
                     ),
@@ -160,8 +155,8 @@ class _AlarmFiringScreenState extends State<AlarmFiringScreen>
                     // // Label
                     // Text(
                     //   widget.alarm.label,
-                    //   style: const TextStyle(
-                    //     color: Color(0xFF8A85A0),
+                    //   style: TextStyle(
+                    //     color: c.subtext,
                     //     fontSize: 18,
                     //     fontWeight: FontWeight.w400,
                     //     letterSpacing: 0.5,
@@ -173,9 +168,9 @@ class _AlarmFiringScreenState extends State<AlarmFiringScreen>
 
                     // Current time (big)
                     Text(
-                      _currentTimeString,
-                      style: const TextStyle(
-                        color: Colors.white,
+                      currentTimeString,
+                      style: TextStyle(
+                        color: c.text,
                         fontSize: 64,
                         fontWeight: FontWeight.w200,
                         letterSpacing: 2,
@@ -188,7 +183,7 @@ class _AlarmFiringScreenState extends State<AlarmFiringScreen>
                     Text(
                       widget.isFromSleep ? 'Good Morning' : widget.alarm.label,
                       style: TextStyle(
-                        color: const Color(0xFFA29BFE).withValues(alpha: 0.7),
+                        color: c.accentSoft.withValues(alpha: 0.7),
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
                         letterSpacing: 1.5,
@@ -201,12 +196,11 @@ class _AlarmFiringScreenState extends State<AlarmFiringScreen>
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Icon(Icons.flash_on,
-                              color: Color(0xFFFFD93D), size: 14),
+                          Icon(Icons.flash_on, color: c.warning, size: 14),
                           const SizedBox(width: 4),
                           Text('Flash active',
                               style: TextStyle(
-                                color: const Color(0xFFFFD93D).withValues(alpha: 0.7),
+                                color: c.warning.withValues(alpha: 0.7),
                                 fontSize: 12,
                               )),
                         ],
@@ -224,17 +218,15 @@ class _AlarmFiringScreenState extends State<AlarmFiringScreen>
                           padding: const EdgeInsets.symmetric(vertical: 18),
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(16),
-                            color: const Color(0xFF1A1A24),
-                            border: Border.all(
-                              color: const Color(0xFF6C5CE7).withValues(alpha: 0.3),
-                              width: 1,
-                            ),
+                            color: c.card,
+                            border:
+                                Border.all(color: c.accentWash(0.3), width: 1),
                           ),
                           child: Column(
                             children: [
-                              const Text('Snooze',
+                              Text('Snooze',
                                   style: TextStyle(
-                                    color: Color(0xFFA29BFE),
+                                    color: c.accentSoft,
                                     fontSize: 18,
                                     fontWeight: FontWeight.w600,
                                   )),
@@ -242,7 +234,7 @@ class _AlarmFiringScreenState extends State<AlarmFiringScreen>
                               Text(
                                 '${widget.alarm.snoozeDurationMinutes} minutes',
                                 style: TextStyle(
-                                  color: const Color(0xFFA29BFE).withValues(alpha: 0.5),
+                                  color: c.accentSoft.withValues(alpha: 0.5),
                                   fontSize: 13,
                                 ),
                               ),
@@ -262,23 +254,13 @@ class _AlarmFiringScreenState extends State<AlarmFiringScreen>
                         padding: const EdgeInsets.symmetric(vertical: 20),
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(16),
-                          gradient: const LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [Color(0xFFFF6B6B), Color(0xFFE05555)],
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFFFF6B6B).withValues(alpha: 0.3),
-                              blurRadius: 20,
-                              offset: const Offset(0, 8),
-                            ),
-                          ],
+                          gradient: c.dangerGradient,
+                          boxShadow: c.dangerGlow,
                         ),
-                        child: const Center(
+                        child: Center(
                           child: Text('Dismiss',
                               style: TextStyle(
-                                color: Colors.white,
+                                color: c.onDanger,
                                 fontSize: 20,
                                 fontWeight: FontWeight.w700,
                                 letterSpacing: 0.5,

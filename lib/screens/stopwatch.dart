@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:not_clock/main.dart';
+import 'package:not_clock/theme/app_theme.dart';
 
 class StopwatchScreen extends StatefulWidget {
   const StopwatchScreen({super.key});
@@ -101,6 +102,7 @@ class _StopwatchScreenState extends State<StopwatchScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final c = SettingsProvider.of(context).colors;
     final elapsed = _stopwatch.elapsed;
     final isRunning = _stopwatch.isRunning;
     final hasStarted = elapsed > Duration.zero;
@@ -115,8 +117,8 @@ class _StopwatchScreenState extends State<StopwatchScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Stopwatch',
-                    style: TextStyle(color: Colors.white, fontSize: 32,
+                Text('Stopwatch',
+                    style: TextStyle(color: c.text, fontSize: 32,
                         fontWeight: FontWeight.w700)),
                 const SettingsGearButton(),
               ],
@@ -131,7 +133,7 @@ class _StopwatchScreenState extends State<StopwatchScreen> {
                   Text(
                     _formatDuration(elapsed),
                     style: TextStyle(
-                      color: isRunning ? Colors.white : Colors.white.withValues(alpha: 0.8),
+                      color: isRunning ? c.text : c.text.withValues(alpha: 0.8),
                       fontSize: elapsed.inHours > 0 ? 48 : 56,
                       fontWeight: FontWeight.w200,
                       letterSpacing: 2,
@@ -144,11 +146,11 @@ class _StopwatchScreenState extends State<StopwatchScreen> {
                       padding: const EdgeInsets.only(top: 8),
                       child: Text(
                         'Lap ${_laps.length + 1}  ${_formatLapDuration(_currentLapTime)}',
-                        style: const TextStyle(
-                          color: Color(0xFFA29BFE),
+                        style: TextStyle(
+                          color: c.accentSoft,
                           fontSize: 16,
                           fontWeight: FontWeight.w400,
-                          fontFeatures: [FontFeature.tabularFigures()],
+                          fontFeatures: const [FontFeature.tabularFigures()],
                         ),
                       ),
                     ),
@@ -163,12 +165,14 @@ class _StopwatchScreenState extends State<StopwatchScreen> {
               children: [
                 if (hasStarted)
                   _buildControlButton(
+                    c: c,
                     label: isRunning ? 'Lap' : 'Reset',
                     onTap: isRunning ? _lap : _reset,
                     isPrimary: false,
                   ),
                 if (hasStarted) const SizedBox(width: 12),
                 _buildControlButton(
+                  c: c,
                   label: isRunning ? 'Stop' : (hasStarted ? 'Resume' : 'Start'),
                   onTap: _startStop,
                   isPrimary: true,
@@ -181,13 +185,13 @@ class _StopwatchScreenState extends State<StopwatchScreen> {
 
             // Laps list
             if (_laps.isNotEmpty) ...[
-              const Padding(
-                padding: EdgeInsets.only(bottom: 12),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
                 child: Text('LAPS',
-                    style: TextStyle(color: Color(0xFF6A6A7A), fontSize: 12,
+                    style: TextStyle(color: c.subtext, fontSize: 12,
                         fontWeight: FontWeight.w500, letterSpacing: 1.2)),
               ),
-              Expanded(child: _buildLapsList()),
+              Expanded(child: _buildLapsList(c)),
             ] else
               const Spacer(),
           ],
@@ -197,6 +201,7 @@ class _StopwatchScreenState extends State<StopwatchScreen> {
   }
 
   Widget _buildControlButton({
+    required AppColors c,
     required String label,
     required VoidCallback onTap,
     required bool isPrimary,
@@ -207,17 +212,17 @@ class _StopwatchScreenState extends State<StopwatchScreen> {
     Color borderColor;
 
     if (isStop) {
-      bgColor = const Color(0xFFFF6B6B).withValues(alpha: 0.15);
-      textColor = const Color(0xFFFF6B6B);
-      borderColor = const Color(0xFFFF6B6B).withValues(alpha: 0.3);
+      bgColor = c.danger.withValues(alpha: 0.15);
+      textColor = c.danger;
+      borderColor = c.danger.withValues(alpha: 0.3);
     } else if (isPrimary) {
-      bgColor = const Color(0xFF6C5CE7).withValues(alpha: 0.2);
-      textColor = const Color(0xFFA29BFE);
-      borderColor = const Color(0xFF6C5CE7).withValues(alpha: 0.3);
+      bgColor = c.accentWash(0.2);
+      textColor = c.accentSoft;
+      borderColor = c.accentWash(0.3);
     } else {
-      bgColor = const Color(0xFF1A1A24);
-      textColor = const Color(0xFF8A85A0);
-      borderColor = const Color(0xFF2A2A3A);
+      bgColor = c.card;
+      textColor = c.subtext;
+      borderColor = c.divider;
     }
 
     return Expanded(
@@ -237,28 +242,28 @@ class _StopwatchScreenState extends State<StopwatchScreen> {
           ),
         ),
       ),
-    );    
+    );
   }
 
-  Widget _buildLapsList() {
+  Widget _buildLapsList(AppColors c) {
     return ListView.separated(
       itemCount: _laps.length,
-      separatorBuilder: (_, __) => const Padding(
-        padding: EdgeInsets.only(left: 8),
-        child: Divider(color: Color(0xFF1E1E2E), height: 1),
+      separatorBuilder: (_, __) => Padding(
+        padding: const EdgeInsets.only(left: 8),
+        child: Divider(color: c.divider, height: 1),
       ),
       itemBuilder: (context, index) {
         final lapNumber = _laps.length - index;
         final lapTime = _laps[index];
 
-        // Determine color: green for best, red for worst, white for normal
-        Color timeColor = Colors.white;
+        // Determine color: green for best, red for worst, normal otherwise
+        Color timeColor = c.text;
         String? badge;
         if (_bestLap != null && lapTime == _bestLap) {
-          timeColor = const Color(0xFF4CD964);
+          timeColor = c.success;
           badge = 'BEST';
         } else if (_worstLap != null && lapTime == _worstLap) {
-          timeColor = const Color(0xFFFF6B6B);
+          timeColor = c.danger;
           badge = 'WORST';
         }
 
@@ -269,7 +274,7 @@ class _StopwatchScreenState extends State<StopwatchScreen> {
               SizedBox(
                 width: 60,
                 child: Text('Lap $lapNumber',
-                    style: const TextStyle(color: Color(0xFF6A6A7A), fontSize: 14)),
+                    style: TextStyle(color: c.subtext, fontSize: 14)),
               ),
               if (badge != null)
                 Container(

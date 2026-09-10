@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:not_clock/main.dart';
 import 'package:not_clock/models/alarm_data.dart';
-import 'package:not_clock/models/app_settings.dart';
+import 'package:not_clock/theme/app_theme.dart';
 import 'package:not_clock/screens/alarm_sub/repeat_day_picker.dart';
 import 'package:not_clock/screens/alarm_sub/sound_picker.dart';
 
@@ -56,26 +56,27 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
   void _cancel() => Navigator.pop(context);
 
   void _delete() {
+    final c = SettingsProvider.read(context).colors;
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1E1E2E),
+        backgroundColor: c.card,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Delete Alarm',
-            style: TextStyle(color: Colors.white, fontSize: 18)),
-        content: const Text('Are you sure you want to delete this alarm?',
-            style: TextStyle(color: Color(0xFF8A85A0), fontSize: 14)),
+        title: Text('Delete Alarm',
+            style: TextStyle(color: c.text, fontSize: 18)),
+        content: Text('Are you sure you want to delete this alarm?',
+            style: TextStyle(color: c.subtext, fontSize: 14)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel', style: TextStyle(color: Color(0xFFA29BFE))),
+            child: Text('Cancel', style: TextStyle(color: c.accentSoft)),
           ),
           TextButton(
             onPressed: () {
               Navigator.pop(ctx);
               Navigator.pop(context, 'delete');
             },
-            child: const Text('Delete', style: TextStyle(color: Color(0xFFFF6B6B))),
+            child: Text('Delete', style: TextStyle(color: c.danger)),
           ),
         ],
       ),
@@ -104,10 +105,11 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
   @override
   Widget build(BuildContext context) {
     final settings = SettingsProvider.of(context);
+    final c = settings.colors;
     final is24h = settings.use24HourFormat;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0A0F),
+      backgroundColor: c.background,
       body: SafeArea(
         child: Column(
           children: [
@@ -119,17 +121,17 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
                 children: [
                   GestureDetector(
                     onTap: _cancel,
-                    child: const Text('Cancel',
-                        style: TextStyle(color: Color(0xFFA29BFE),
+                    child: Text('Cancel',
+                        style: TextStyle(color: c.accentSoft,
                             fontSize: 17, fontWeight: FontWeight.w400)),
                   ),
                   Text(widget.isNew ? 'Add Alarm' : 'Edit Alarm',
-                      style: const TextStyle(color: Colors.white,
+                      style: TextStyle(color: c.text,
                           fontSize: 17, fontWeight: FontWeight.w600)),
                   GestureDetector(
                     onTap: _save,
-                    child: const Text('Save',
-                        style: TextStyle(color: Color(0xFF6C5CE7),
+                    child: Text('Save',
+                        style: TextStyle(color: c.accent,
                             fontSize: 17, fontWeight: FontWeight.w600)),
                   ),
                 ],
@@ -148,7 +150,7 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
                     Container(
                       height: 250,
                       decoration: BoxDecoration(
-                        color: const Color(0xFF12121A),
+                        color: c.surface,
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: Stack(
@@ -160,11 +162,9 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
                             margin: const EdgeInsets.symmetric(horizontal: 12),
                             decoration: BoxDecoration(
                               borderRadius: BorderRadius.circular(10),
-                              color: const Color(0xFF6C5CE7).withValues(alpha: 0.1),
+                              color: c.accentWash(0.1),
                               border: Border.all(
-                                color: const Color(0xFF6C5CE7).withValues(alpha: 0.25),
-                                width: 1,
-                              ),
+                                  color: c.accentWash(0.25), width: 1),
                             ),
                           ),
                           Row(
@@ -175,17 +175,17 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
                                 width: 70,
                                 height: 250,
                                 child: is24h
-                                    ? _build24HourWheel()
-                                    : _build12HourWheel(),
+                                    ? _build24HourWheel(c)
+                                    : _build12HourWheel(c),
                               ),
-                              const Text(':',
-                                  style: TextStyle(color: Color(0xFF6C5CE7),
+                              Text(':',
+                                  style: TextStyle(color: c.accent,
                                       fontSize: 28, fontWeight: FontWeight.w300)),
                               // Minute wheel
                               SizedBox(
                                 width: 70,
                                 height: 250,
-                                child: _buildMinuteWheel(),
+                                child: _buildMinuteWheel(c),
                               ),
                               // AM/PM wheel (only in 12h mode)
                               if (!is24h) ...[
@@ -193,7 +193,7 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
                                 SizedBox(
                                   width: 56,
                                   height: 250,
-                                  child: _buildAmPmWheel(),
+                                  child: _buildAmPmWheel(c),
                                 ),
                               ],
                             ],
@@ -207,7 +207,7 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
                     // ── Settings List ──
                     Container(
                       decoration: BoxDecoration(
-                        color: const Color(0xFF12121A),
+                        color: c.surface,
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: Column(
@@ -215,11 +215,11 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
                           // Repeat
                           SettingsRow(label: 'Repeat', value: _alarm.daysString,
                               onTap: () => _openRepeatPicker()),
-                          _divider(),
+                          _divider(c),
                           // Label
                           SettingsRow(label: 'Label', value: _alarm.label,
                               onTap: () => _openLabelEditor()),
-                          _divider(),
+                          _divider(c),
                           // Sound — shows display name from filename
                           SettingsRow(
                             label: 'Sound',
@@ -228,7 +228,7 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
                                 : soundDisplayName(_alarm.sound),
                             onTap: () => _openSoundPicker(),
                           ),
-                          _divider(),
+                          _divider(c),
                           // Flash Alarm toggle
                           Padding(
                             padding: const EdgeInsets.symmetric(
@@ -236,29 +236,30 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                const Expanded(
+                                Expanded(
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Text('Flash Alarm',
-                                          style: TextStyle(color: Colors.white, fontSize: 16)),
+                                          style: TextStyle(
+                                              color: c.text, fontSize: 16)),
                                       Text('Flash screen when alarm fires',
-                                          style: TextStyle(color: Color(0xFF6A6A7A), fontSize: 11)),
+                                          style: TextStyle(
+                                              color: c.subtext, fontSize: 11)),
                                     ],
                                   ),
                                 ),
+                                // Colors come from ThemeData.switchTheme
                                 Switch(
                                   value: _alarm.flashEnabled,
                                   onChanged: (val) {
                                     setState(() => _alarm.flashEnabled = val);
                                   },
-                                  activeColor: const Color(0xFF6C5CE7),
-                                  inactiveTrackColor: const Color(0xFF2A2A3A),
                                 ),
                               ],
                             ),
                           ),
-                          _divider(),
+                          _divider(c),
                           // Snooze toggle
                           Padding(
                             padding: const EdgeInsets.symmetric(
@@ -266,21 +267,20 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                const Text('Snooze',
-                                    style: TextStyle(color: Colors.white, fontSize: 16)),
+                                Text('Snooze',
+                                    style: TextStyle(
+                                        color: c.text, fontSize: 16)),
                                 Switch(
                                   value: _alarm.snoozeEnabled,
                                   onChanged: (val) {
                                     setState(() => _alarm.snoozeEnabled = val);
                                   },
-                                  activeColor: const Color(0xFF6C5CE7),
-                                  inactiveTrackColor: const Color(0xFF2A2A3A),
                                 ),
                               ],
                             ),
                           ),
                           if (_alarm.snoozeEnabled) ...[
-                            _divider(),
+                            _divider(c),
                             SettingsRow(
                               label: 'Snooze Duration',
                               value: '${_alarm.snoozeDurationMinutes} min',
@@ -301,12 +301,12 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
                           width: double.infinity,
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF12121A),
+                            color: c.surface,
                             borderRadius: BorderRadius.circular(16),
                           ),
-                          child: const Center(
+                          child: Center(
                             child: Text('Delete Alarm',
-                                style: TextStyle(color: Color(0xFFFF6B6B),
+                                style: TextStyle(color: c.danger,
                                     fontSize: 17, fontWeight: FontWeight.w500)),
                           ),
                         ),
@@ -325,7 +325,7 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
 
   // ── Wheel Builders ──
 
-  Widget _build24HourWheel() {
+  Widget _build24HourWheel(AppColors c) {
     return ListWheelScrollView.useDelegate(
       controller: _hourController,
       itemExtent: 50,
@@ -340,7 +340,7 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
           return Center(
             child: Text(index.toString().padLeft(2, '0'),
                 style: TextStyle(
-                  color: sel ? Colors.white : const Color(0xFF4A4A5A),
+                  color: sel ? c.text : c.muted,
                   fontSize: sel ? 28 : 22,
                   fontWeight: sel ? FontWeight.w600 : FontWeight.w300,
                 )),
@@ -351,7 +351,7 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
     );
   }
 
-  Widget _build12HourWheel() {
+  Widget _build12HourWheel(AppColors c) {
     return ListWheelScrollView.useDelegate(
       controller: _hourController,
       itemExtent: 50,
@@ -367,7 +367,7 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
           return Center(
             child: Text(h.toString(),
                 style: TextStyle(
-                  color: sel ? Colors.white : const Color(0xFF4A4A5A),
+                  color: sel ? c.text : c.muted,
                   fontSize: sel ? 28 : 22,
                   fontWeight: sel ? FontWeight.w600 : FontWeight.w300,
                 )),
@@ -378,7 +378,7 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
     );
   }
 
-  Widget _buildMinuteWheel() {
+  Widget _buildMinuteWheel(AppColors c) {
     return ListWheelScrollView.useDelegate(
       controller: _minuteController,
       itemExtent: 50,
@@ -393,7 +393,7 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
           return Center(
             child: Text(index.toString().padLeft(2, '0'),
                 style: TextStyle(
-                  color: sel ? Colors.white : const Color(0xFF4A4A5A),
+                  color: sel ? c.text : c.muted,
                   fontSize: sel ? 28 : 22,
                   fontWeight: sel ? FontWeight.w600 : FontWeight.w300,
                 )),
@@ -404,7 +404,7 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
     );
   }
 
-  Widget _buildAmPmWheel() {
+  Widget _buildAmPmWheel(AppColors c) {
     return ListWheelScrollView.useDelegate(
       controller: _amPmController,
       itemExtent: 50,
@@ -420,7 +420,7 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
           return Center(
             child: Text(label,
                 style: TextStyle(
-                  color: sel ? const Color(0xFFA29BFE) : const Color(0xFF4A4A5A),
+                  color: sel ? c.accentSoft : c.muted,
                   fontSize: sel ? 18 : 15,
                   fontWeight: sel ? FontWeight.w600 : FontWeight.w400,
                 )),
@@ -431,10 +431,10 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
     );
   }
 
-  Widget _divider() {
-    return const Padding(
-      padding: EdgeInsets.only(left: 16),
-      child: Divider(color: Color(0xFF1E1E2E), height: 1, thickness: 1),
+  Widget _divider(AppColors c) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 16),
+      child: Divider(color: c.divider, height: 1, thickness: 1),
     );
   }
 
@@ -451,34 +451,35 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
   }
 
   void _openLabelEditor() async {
+    final c = SettingsProvider.read(context).colors;
     final controller = TextEditingController(text: _alarm.label);
     final result = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1E1E2E),
+        backgroundColor: c.card,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Label', style: TextStyle(color: Colors.white, fontSize: 18)),
+        title: Text('Label', style: TextStyle(color: c.text, fontSize: 18)),
         content: TextField(
           controller: controller,
           autofocus: true,
-          style: const TextStyle(color: Colors.white),
-          cursorColor: const Color(0xFF6C5CE7),
+          style: TextStyle(color: c.text),
+          cursorColor: c.accent,
           decoration: InputDecoration(
             hintText: 'Alarm',
-            hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.3)),
+            hintStyle: TextStyle(color: c.muted),
             enabledBorder: UnderlineInputBorder(
-              borderSide: BorderSide(color: const Color(0xFF6C5CE7).withValues(alpha: 0.3)),
+              borderSide: BorderSide(color: c.accentWash(0.3)),
             ),
-            focusedBorder: const UnderlineInputBorder(
-              borderSide: BorderSide(color: Color(0xFF6C5CE7)),
+            focusedBorder: UnderlineInputBorder(
+              borderSide: BorderSide(color: c.accent),
             ),
           ),
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel', style: TextStyle(color: Color(0xFF8A85A0)))),
+              child: Text('Cancel', style: TextStyle(color: c.subtext))),
           TextButton(onPressed: () => Navigator.pop(ctx, controller.text),
-              child: const Text('Done', style: TextStyle(color: Color(0xFF6C5CE7)))),
+              child: Text('Done', style: TextStyle(color: c.accent))),
         ],
       ),
     );
@@ -501,10 +502,11 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
   }
 
   void _openSnoozeDurationPicker() {
+    final c = SettingsProvider.read(context).colors;
     final options = [1, 2, 3, 5, 9, 10, 15, 20, 30];
     showModalBottomSheet(
       context: context,
-      backgroundColor: const Color(0xFF12121A),
+      backgroundColor: c.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -516,11 +518,11 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Container(width: 36, height: 4,
-                    decoration: BoxDecoration(color: const Color(0xFF3A3A4A),
+                    decoration: BoxDecoration(color: c.muted,
                         borderRadius: BorderRadius.circular(2))),
                 const SizedBox(height: 16),
-                const Text('Snooze Duration',
-                    style: TextStyle(color: Colors.white, fontSize: 17,
+                Text('Snooze Duration',
+                    style: TextStyle(color: c.text, fontSize: 17,
                         fontWeight: FontWeight.w600)),
                 const SizedBox(height: 12),
                 ...options.map((mins) {
@@ -528,11 +530,11 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
                   return ListTile(
                     title: Text('$mins minutes',
                         style: TextStyle(
-                          color: isSelected ? const Color(0xFFA29BFE) : Colors.white,
+                          color: isSelected ? c.accentSoft : c.text,
                           fontSize: 16,
                         )),
                     trailing: isSelected
-                        ? const Icon(Icons.check, color: Color(0xFF6C5CE7), size: 20)
+                        ? Icon(Icons.check, color: c.accent, size: 20)
                         : null,
                     onTap: () {
                       setState(() => _alarm.snoozeDurationMinutes = mins);
@@ -560,6 +562,7 @@ class SettingsRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = SettingsProvider.of(context).colors;
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
@@ -568,12 +571,12 @@ class SettingsRow extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(label, style: const TextStyle(color: Colors.white, fontSize: 16)),
+            Text(label, style: TextStyle(color: c.text, fontSize: 16)),
             Row(
               children: [
-                Text(value, style: const TextStyle(color: Color(0xFF6A6A7A), fontSize: 16)),
+                Text(value, style: TextStyle(color: c.subtext, fontSize: 16)),
                 const SizedBox(width: 6),
-                const Icon(Icons.chevron_right, color: Color(0xFF3A3A4A), size: 20),
+                Icon(Icons.chevron_right, color: c.muted, size: 20),
               ],
             ),
           ],

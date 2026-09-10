@@ -1,10 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:not_clock/services/storage_service.dart';
+import 'package:not_clock/theme/app_theme.dart';
 
 /// Global app settings, shared across all screens via InheritedWidget.
 /// Automatically saves to disk when changed and loads on init.
 class AppSettings extends ChangeNotifier {
   bool _use24HourFormat = false;
+
+  // Personalization
+  ThemeFlavor _flavor = ThemeFlavor.midnight;
+  AccentColor _accent = AccentColor.mauve;
+  String _appIconId = 'default';
+
+  // Sleep
+  bool _nightClockEnabled = false;
+
+  // ─── 24-hour format ─────────────────────────────────────────────────────────
 
   bool get use24HourFormat => _use24HourFormat;
 
@@ -21,11 +32,89 @@ class AppSettings extends ChangeNotifier {
     use24HourFormat = !_use24HourFormat;
   }
 
+  // ─── Theme ──────────────────────────────────────────────────────────────────
+
+  ThemeFlavor get flavor => _flavor;
+
+  set flavor(ThemeFlavor value) {
+    if (_flavor != value) {
+      _flavor = value;
+      notifyListeners();
+      StorageService.saveThemeFlavor(value.name);
+    }
+  }
+
+  AccentColor get accent => _accent;
+
+  set accent(AccentColor value) {
+    if (_accent != value) {
+      _accent = value;
+      notifyListeners();
+      StorageService.saveThemeAccent(value.name);
+    }
+  }
+
+  /// The resolved palette. Every screen reads its colors from here:
+  ///   final c = SettingsProvider.of(context).colors;
+  AppColors get colors => AppPalette.resolve(_flavor, _accent);
+
+  /// Back to the original purple-on-near-black look.
+  void resetTheme() {
+    _flavor = ThemeFlavor.midnight;
+    _accent = AccentColor.mauve;
+    notifyListeners();
+    StorageService.saveThemeFlavor(_flavor.name);
+    StorageService.saveThemeAccent(_accent.name);
+  }
+
+  // ─── App icon ───────────────────────────────────────────────────────────────
+
+  String get appIconId => _appIconId;
+
+  set appIconId(String value) {
+    if (_appIconId != value) {
+      _appIconId = value;
+      notifyListeners();
+      StorageService.saveAppIcon(value);
+    }
+  }
+
+  // ─── Sleep ──────────────────────────────────────────────────────────────────
+
+  bool get nightClockEnabled => _nightClockEnabled;
+
+  set nightClockEnabled(bool value) {
+    if (_nightClockEnabled != value) {
+      _nightClockEnabled = value;
+      notifyListeners();
+      StorageService.saveNightClockEnabled(value);
+    }
+  }
+
+  // ─── Loading ────────────────────────────────────────────────────────────────
+
   /// Load saved settings from disk. Call this once at app startup.
   Future<void> loadFromDisk() async {
     _use24HourFormat = await StorageService.load24HourFormat();
+    _nightClockEnabled = await StorageService.loadNightClockEnabled();
+    _appIconId = await StorageService.loadAppIcon();
+
+    final flavorName = await StorageService.loadThemeFlavor();
+    _flavor = ThemeFlavor.values.firstWhere(
+      (f) => f.name == flavorName,
+      orElse: () => ThemeFlavor.midnight,
+    );
+
+    final accentName = await StorageService.loadThemeAccent();
+    _accent = AccentColor.values.firstWhere(
+      (a) => a.name == accentName,
+      orElse: () => AccentColor.mauve,
+    );
+
     notifyListeners();
   }
+
+  // ─── Formatting helpers ─────────────────────────────────────────────────────
 
   /// Format an hour and minute into a time string.
   /// Respects 24-hour setting.

@@ -2,11 +2,11 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// StorageService handles all persistent data using shared_preferences.
-/// 
+///
 /// shared_preferences stores simple key-value pairs on disk:
 /// - Strings, ints, bools, doubles, and List<String>
 /// - For complex objects (alarms, cities), we serialize to JSON strings
-/// 
+///
 /// Each data type has its own key so they don't interfere with each other.
 class StorageService {
   // Storage keys — each piece of data gets a unique key
@@ -14,6 +14,14 @@ class StorageService {
   static const String _keyAlarms = 'alarms_list';
   static const String _keyWorldClocks = 'world_clocks_list';
   static const String _keyRecentTimers = 'recent_timers_list';
+
+  // Personalization
+  static const String _keyThemeFlavor = 'settings_theme_flavor';
+  static const String _keyThemeAccent = 'settings_theme_accent';
+  static const String _keyAppIcon = 'settings_app_icon';
+
+  // Sleep
+  static const String _keyNightClock = 'settings_night_clock';
 
   // ─── Settings ───────────────────────────────────────────────────────────────
 
@@ -27,6 +35,58 @@ class StorageService {
   static Future<bool> load24HourFormat() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool(_keyUse24Hour) ?? false;
+  }
+
+  // ─── Personalization ────────────────────────────────────────────────────────
+
+  /// Save the theme flavor by enum name, e.g. 'mocha'.
+  static Future<void> saveThemeFlavor(String name) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyThemeFlavor, name);
+  }
+
+  /// Load the theme flavor name. Null means never set — use the default.
+  static Future<String?> loadThemeFlavor() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_keyThemeFlavor);
+  }
+
+  /// Save the accent color by enum name, e.g. 'mauve'.
+  static Future<void> saveThemeAccent(String name) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyThemeAccent, name);
+  }
+
+  /// Load the accent color name. Null means never set.
+  static Future<String?> loadThemeAccent() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_keyThemeAccent);
+  }
+
+  /// Save the chosen app icon id.
+  static Future<void> saveAppIcon(String id) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyAppIcon, id);
+  }
+
+  /// Load the chosen app icon id (defaults to 'default').
+  static Future<String> loadAppIcon() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_keyAppIcon) ?? 'default';
+  }
+
+  // ─── Sleep ──────────────────────────────────────────────────────────────────
+
+  /// Save whether the Night Clock opens after setting a sleep alarm.
+  static Future<void> saveNightClockEnabled(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_keyNightClock, value);
+  }
+
+  /// Load the Night Clock preference (defaults to false — opt in).
+  static Future<bool> loadNightClockEnabled() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_keyNightClock) ?? false;
   }
 
   // ─── Alarms ─────────────────────────────────────────────────────────────────

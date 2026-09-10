@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:not_clock/main.dart';
+import 'package:not_clock/theme/app_theme.dart';
 import 'package:not_clock/services/storage_service.dart';
 
 // ─── Timer Data Model ─────────────────────────────────────────────────────────
@@ -187,6 +188,7 @@ class _TimersScreenState extends State<TimersScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final c = SettingsProvider.of(context).colors;
     // If no timers and no recents, show the picker inline
     final showInlinePicker = _timers.isEmpty;
 
@@ -200,8 +202,8 @@ class _TimersScreenState extends State<TimersScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Timers',
-                    style: TextStyle(color: Colors.white, fontSize: 32,
+                Text('Timers',
+                    style: TextStyle(color: c.text, fontSize: 32,
                         fontWeight: FontWeight.w700)),
                 Row(
                   children: [
@@ -211,12 +213,10 @@ class _TimersScreenState extends State<TimersScreen> {
                         child: Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF6C5CE7)
-                                .withValues(alpha: 0.15),
+                            color: c.accentWash(0.15),
                             borderRadius: BorderRadius.circular(10),
                           ),
-                          child: const Icon(Icons.add,
-                              color: Color(0xFFA29BFE), size: 24),
+                          child: Icon(Icons.add, color: c.accentSoft, size: 24),
                         ),
                       ),
                     if (!showInlinePicker) const SizedBox(width: 10),
@@ -238,7 +238,7 @@ class _TimersScreenState extends State<TimersScreen> {
                           _saveRecents(); // Persist deletion
                         },
                     )
-                  : _buildTimersAndRecents(),
+                  : _buildTimersAndRecents(c),
             ),
           ],
         ),
@@ -247,28 +247,28 @@ class _TimersScreenState extends State<TimersScreen> {
   }
 
   // ── Active timers + recents in one scrollable list ──
-  Widget _buildTimersAndRecents() {
+  Widget _buildTimersAndRecents(AppColors c) {
     return ListView(
       children: [
         // Active timers
         for (int i = 0; i < _timers.length; i++) ...[
-          _buildTimerCard(_timers[i]),
+          _buildTimerCard(c, _timers[i]),
           if (i < _timers.length - 1) const SizedBox(height: 12),
         ],
 
         // Recents section
         if (_recentTimers.isNotEmpty) ...[
           const SizedBox(height: 28),
-          const Text('RECENTS',
-              style: TextStyle(color: Color(0xFF6A6A7A), fontSize: 12,
+          Text('RECENTS',
+              style: TextStyle(color: c.subtext, fontSize: 12,
                   fontWeight: FontWeight.w500, letterSpacing: 1.2)),
           const SizedBox(height: 10),
           for (int i = 0; i < _recentTimers.length; i++) ...[
-            _buildRecentTile(_recentTimers[i], i),
+            _buildRecentTile(c, _recentTimers[i], i),
             if (i < _recentTimers.length - 1)
-              const Padding(
-                padding: EdgeInsets.only(left: 8),
-                child: Divider(color: Color(0xFF1E1E2E), height: 1),
+              Padding(
+                padding: const EdgeInsets.only(left: 8),
+                child: Divider(color: c.divider, height: 1),
               ),
           ],
         ],
@@ -278,7 +278,7 @@ class _TimersScreenState extends State<TimersScreen> {
     );
   }
 
-  Widget _buildRecentTile(Duration duration, int index) {
+  Widget _buildRecentTile(AppColors c, Duration duration, int index) {
     return Dismissible(
       key: ValueKey('recent_main_${duration.inSeconds}_$index'),
       direction: DismissDirection.endToStart,
@@ -286,11 +286,10 @@ class _TimersScreenState extends State<TimersScreen> {
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: 20),
         decoration: BoxDecoration(
-          color: const Color(0xFFFF6B6B).withValues(alpha: 0.15),
+          color: c.danger.withValues(alpha: 0.15),
           borderRadius: BorderRadius.circular(12),
         ),
-        child:
-            const Icon(Icons.delete_outline, color: Color(0xFFFF6B6B), size: 22),
+        child: Icon(Icons.delete_outline, color: c.danger, size: 22),
       ),
       onDismissed: (_) {
         setState(() => _recentTimers.removeAt(index));
@@ -303,8 +302,8 @@ class _TimersScreenState extends State<TimersScreen> {
             Expanded(
               child: Text(
                 _formatDurationShort(duration),
-                style: const TextStyle(
-                    color: Colors.white, fontSize: 18, fontWeight: FontWeight.w300),
+                style: TextStyle(
+                    color: c.text, fontSize: 18, fontWeight: FontWeight.w300),
               ),
             ),
             GestureDetector(
@@ -314,14 +313,11 @@ class _TimersScreenState extends State<TimersScreen> {
                 height: 40,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: const Color(0xFF6C5CE7).withValues(alpha: 0.2),
-                  border: Border.all(
-                    color: const Color(0xFF6C5CE7).withValues(alpha: 0.3),
-                    width: 1.5,
-                  ),
+                  color: c.accentWash(0.2),
+                  border: Border.all(color: c.accentWash(0.3), width: 1.5),
                 ),
-                child: const Icon(Icons.play_arrow_rounded,
-                    color: Color(0xFFA29BFE), size: 22),
+                child: Icon(Icons.play_arrow_rounded,
+                    color: c.accentSoft, size: 22),
               ),
             ),
           ],
@@ -330,26 +326,26 @@ class _TimersScreenState extends State<TimersScreen> {
     );
   }
 
-  Widget _buildTimerCard(_TimerData data) {
+  Widget _buildTimerCard(AppColors c, _TimerData data) {
     final Color progressColor;
     if (data.isFinished) {
-      progressColor = const Color(0xFFFF6B6B);
+      progressColor = c.danger;
     } else if (data.remaining.inSeconds <= 10 &&
         data.remaining.inSeconds > 0) {
-      progressColor = const Color(0xFFFFD93D);
+      progressColor = c.warning;
     } else {
-      progressColor = const Color(0xFF6C5CE7);
+      progressColor = c.accent;
     }
 
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: const Color(0xFF14141E),
+        color: c.card,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: data.isFinished
-              ? const Color(0xFFFF6B6B).withValues(alpha: 0.3)
-              : const Color(0xFF1E1E2E),
+              ? c.danger.withValues(alpha: 0.3)
+              : c.divider,
           width: 1,
         ),
       ),
@@ -360,19 +356,18 @@ class _TimersScreenState extends State<TimersScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(data.label,
-                  style:
-                      const TextStyle(color: Color(0xFF6A6A7A), fontSize: 13)),
+                  style: TextStyle(color: c.subtext, fontSize: 13)),
               if (data.isFinished)
                 Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFF6B6B).withValues(alpha: 0.15),
+                    color: c.danger.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(6),
                   ),
-                  child: const Text('DONE',
+                  child: Text('DONE',
                       style: TextStyle(
-                          color: Color(0xFFFF6B6B),
+                          color: c.danger,
                           fontSize: 11,
                           fontWeight: FontWeight.w700,
                           letterSpacing: 0.5)),
@@ -383,7 +378,7 @@ class _TimersScreenState extends State<TimersScreen> {
           Text(
             _formatDuration(data.remaining),
             style: TextStyle(
-              color: data.isFinished ? const Color(0xFFFF6B6B) : Colors.white,
+              color: data.isFinished ? c.danger : c.text,
               fontSize: 40,
               fontWeight: FontWeight.w200,
               fontFeatures: const [FontFeature.tabularFigures()],
@@ -394,7 +389,7 @@ class _TimersScreenState extends State<TimersScreen> {
             borderRadius: BorderRadius.circular(4),
             child: LinearProgressIndicator(
               value: data.progress,
-              backgroundColor: const Color(0xFF2A2A3A),
+              backgroundColor: c.divider,
               color: progressColor,
               minHeight: 4,
             ),
@@ -409,13 +404,13 @@ class _TimersScreenState extends State<TimersScreen> {
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(10),
-                      color: const Color(0xFF1A1A24),
-                      border: Border.all(color: const Color(0xFF2A2A3A)),
+                      color: c.cardAlt,
+                      border: Border.all(color: c.divider),
                     ),
-                    child: const Center(
+                    child: Center(
                       child: Text('Cancel',
                           style: TextStyle(
-                              color: Color(0xFF8A85A0),
+                              color: c.subtext,
                               fontSize: 14,
                               fontWeight: FontWeight.w500)),
                     ),
@@ -438,19 +433,13 @@ class _TimersScreenState extends State<TimersScreen> {
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(10),
-                      color: data.isFinished
-                          ? const Color(0xFF6C5CE7).withValues(alpha: 0.15)
-                          : data.isRunning
-                              ? const Color(0xFFFFD93D).withValues(alpha: 0.1)
-                              : const Color(0xFF6C5CE7).withValues(alpha: 0.15),
+                      color: data.isRunning
+                          ? c.warning.withValues(alpha: 0.1)
+                          : c.accentWash(0.15),
                       border: Border.all(
-                        color: data.isFinished
-                            ? const Color(0xFF6C5CE7).withValues(alpha: 0.3)
-                            : data.isRunning
-                                ? const Color(0xFFFFD93D)
-                                    .withValues(alpha: 0.3)
-                                : const Color(0xFF6C5CE7)
-                                    .withValues(alpha: 0.3),
+                        color: data.isRunning
+                            ? c.warning.withValues(alpha: 0.3)
+                            : c.accentWash(0.3),
                       ),
                     ),
                     child: Center(
@@ -461,11 +450,7 @@ class _TimersScreenState extends State<TimersScreen> {
                                 ? 'Pause'
                                 : 'Resume',
                         style: TextStyle(
-                          color: data.isFinished
-                              ? const Color(0xFFA29BFE)
-                              : data.isRunning
-                                  ? const Color(0xFFFFD93D)
-                                  : const Color(0xFFA29BFE),
+                          color: data.isRunning ? c.warning : c.accentSoft,
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
                         ),
@@ -571,6 +556,8 @@ class _InlinePickerViewState extends State<_InlinePickerView> {
 
   @override
   Widget build(BuildContext context) {
+    final c = SettingsProvider.of(context).colors;
+
     return ListView(
       children: [
         const SizedBox(height: 20),
@@ -586,23 +573,20 @@ class _InlinePickerViewState extends State<_InlinePickerView> {
                 margin: const EdgeInsets.symmetric(horizontal: 16),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(12),
-                  color: const Color(0xFF6C5CE7).withValues(alpha: 0.1),
-                  border: Border.all(
-                    color: const Color(0xFF6C5CE7).withValues(alpha: 0.25),
-                    width: 1,
-                  ),
+                  color: c.accentWash(0.1),
+                  border: Border.all(color: c.accentWash(0.25), width: 1),
                 ),
               ),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  _buildWheel(_hoursController, 24, _hours,
+                  _buildWheel(c, _hoursController, 24, _hours,
                       (i) => setState(() => _hours = i), 'h'),
                   const SizedBox(width: 8),
-                  _buildWheel(_minutesController, 60, _minutes,
+                  _buildWheel(c, _minutesController, 60, _minutes,
                       (i) => setState(() => _minutes = i), 'm'),
                   const SizedBox(width: 8),
-                  _buildWheel(_secondsController, 60, _seconds,
+                  _buildWheel(c, _secondsController, 60, _seconds,
                       (i) => setState(() => _seconds = i), 's'),
                 ],
               ),
@@ -613,23 +597,23 @@ class _InlinePickerViewState extends State<_InlinePickerView> {
         const SizedBox(height: 28),
 
         // Quick presets
-        const Text('Quick timers',
-            style: TextStyle(color: Color(0xFF6A6A7A), fontSize: 12,
+        Text('Quick timers',
+            style: TextStyle(color: c.subtext, fontSize: 12,
                 fontWeight: FontWeight.w500, letterSpacing: 1.2)),
         const SizedBox(height: 10),
         Row(
           children: [
-            _quickPreset('1m', const Duration(minutes: 1)),
+            _quickPreset(c, '1m', const Duration(minutes: 1)),
             const SizedBox(width: 8),
-            _quickPreset('3m', const Duration(minutes: 3)),
+            _quickPreset(c, '3m', const Duration(minutes: 3)),
             const SizedBox(width: 8),
-            _quickPreset('5m', const Duration(minutes: 5)),
+            _quickPreset(c, '5m', const Duration(minutes: 5)),
             const SizedBox(width: 8),
-            _quickPreset('10m', const Duration(minutes: 10)),
+            _quickPreset(c, '10m', const Duration(minutes: 10)),
             const SizedBox(width: 8),
-            _quickPreset('15m', const Duration(minutes: 15)),
+            _quickPreset(c, '15m', const Duration(minutes: 15)),
             const SizedBox(width: 8),
-            _quickPreset('30m', const Duration(minutes: 30)),
+            _quickPreset(c, '30m', const Duration(minutes: 30)),
           ],
         ),
 
@@ -647,37 +631,20 @@ class _InlinePickerViewState extends State<_InlinePickerView> {
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(16),
               gradient: _pickerIsZero
-                  ? const LinearGradient(
-                      colors: [Color(0xFF2A2A3A), Color(0xFF2A2A3A)])
-                  : const LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [Color(0xFF6C5CE7), Color(0xFF5A4BD1)]),
-              boxShadow: _pickerIsZero
-                  ? []
-                  : [
-                      BoxShadow(
-                        color:
-                            const Color(0xFF6C5CE7).withValues(alpha: 0.3),
-                        blurRadius: 20,
-                        offset: const Offset(0, 8),
-                      ),
-                    ],
+                  ? LinearGradient(colors: [c.divider, c.divider])
+                  : c.accentGradient,
+              boxShadow: _pickerIsZero ? [] : c.accentGlow,
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(Icons.play_arrow_rounded,
-                    color: _pickerIsZero
-                        ? const Color(0xFF4A4A5A)
-                        : Colors.white,
+                    color: _pickerIsZero ? c.muted : c.onAccent,
                     size: 24),
                 const SizedBox(width: 8),
                 Text('Start Timer',
                     style: TextStyle(
-                      color: _pickerIsZero
-                          ? const Color(0xFF4A4A5A)
-                          : Colors.white,
+                      color: _pickerIsZero ? c.muted : c.onAccent,
                       fontSize: 17,
                       fontWeight: FontWeight.w600,
                     )),
@@ -689,8 +656,8 @@ class _InlinePickerViewState extends State<_InlinePickerView> {
         // Recents
         if (widget.recentTimers.isNotEmpty) ...[
           const SizedBox(height: 32),
-          const Text('RECENTS',
-              style: TextStyle(color: Color(0xFF6A6A7A), fontSize: 12,
+          Text('RECENTS',
+              style: TextStyle(color: c.subtext, fontSize: 12,
                   fontWeight: FontWeight.w500, letterSpacing: 1.2)),
           const SizedBox(height: 10),
           for (int i = 0; i < widget.recentTimers.length; i++) ...[
@@ -702,11 +669,10 @@ class _InlinePickerViewState extends State<_InlinePickerView> {
                 alignment: Alignment.centerRight,
                 padding: const EdgeInsets.only(right: 20),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFF6B6B).withValues(alpha: 0.15),
+                  color: c.danger.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(Icons.delete_outline,
-                    color: Color(0xFFFF6B6B), size: 22),
+                child: Icon(Icons.delete_outline, color: c.danger, size: 22),
               ),
               onDismissed: (_) => widget.onDeleteRecent(i),
               child: Padding(
@@ -716,7 +682,7 @@ class _InlinePickerViewState extends State<_InlinePickerView> {
                     Expanded(
                       child: Text(
                         _formatDurationShort(widget.recentTimers[i]),
-                        style: const TextStyle(color: Colors.white,
+                        style: TextStyle(color: c.text,
                             fontSize: 18, fontWeight: FontWeight.w300),
                       ),
                     ),
@@ -727,16 +693,12 @@ class _InlinePickerViewState extends State<_InlinePickerView> {
                         height: 40,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: const Color(0xFF6C5CE7)
-                              .withValues(alpha: 0.2),
-                          border: Border.all(
-                            color: const Color(0xFF6C5CE7)
-                                .withValues(alpha: 0.3),
-                            width: 1.5,
-                          ),
+                          color: c.accentWash(0.2),
+                          border:
+                              Border.all(color: c.accentWash(0.3), width: 1.5),
                         ),
-                        child: const Icon(Icons.play_arrow_rounded,
-                            color: Color(0xFFA29BFE), size: 22),
+                        child: Icon(Icons.play_arrow_rounded,
+                            color: c.accentSoft, size: 22),
                       ),
                     ),
                   ],
@@ -744,9 +706,9 @@ class _InlinePickerViewState extends State<_InlinePickerView> {
               ),
             ),
             if (i < widget.recentTimers.length - 1)
-              const Padding(
-                padding: EdgeInsets.only(left: 8),
-                child: Divider(color: Color(0xFF1E1E2E), height: 1),
+              Padding(
+                padding: const EdgeInsets.only(left: 8),
+                child: Divider(color: c.divider, height: 1),
               ),
           ],
         ],
@@ -757,6 +719,7 @@ class _InlinePickerViewState extends State<_InlinePickerView> {
   }
 
   Widget _buildWheel(
+    AppColors c,
     FixedExtentScrollController controller,
     int count,
     int selectedValue,
@@ -784,7 +747,7 @@ class _InlinePickerViewState extends State<_InlinePickerView> {
                   child: Text(
                     index.toString().padLeft(2, '0'),
                     style: TextStyle(
-                      color: sel ? Colors.white : const Color(0xFF4A4A5A),
+                      color: sel ? c.text : c.muted,
                       fontSize: sel ? 28 : 20,
                       fontWeight: sel ? FontWeight.w600 : FontWeight.w300,
                     ),
@@ -796,13 +759,13 @@ class _InlinePickerViewState extends State<_InlinePickerView> {
           ),
         ),
         Text(label,
-            style: const TextStyle(color: Color(0xFF6A6A7A), fontSize: 14,
+            style: TextStyle(color: c.subtext, fontSize: 14,
                 fontWeight: FontWeight.w400)),
       ],
     );
   }
 
-  Widget _quickPreset(String label, Duration duration) {
+  Widget _quickPreset(AppColors c, String label, Duration duration) {
     return Expanded(
       child: GestureDetector(
         onTap: () => _setQuickTimer(duration),
@@ -810,12 +773,12 @@ class _InlinePickerViewState extends State<_InlinePickerView> {
           padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(10),
-            color: const Color(0xFF1A1A24),
-            border: Border.all(color: const Color(0xFF2A2A3A), width: 1),
+            color: c.card,
+            border: Border.all(color: c.divider, width: 1),
           ),
           child: Center(
             child: Text(label,
-                style: const TextStyle(color: Color(0xFFA29BFE),
+                style: TextStyle(color: c.accentSoft,
                     fontSize: 13, fontWeight: FontWeight.w600)),
           ),
         ),
@@ -891,11 +854,13 @@ class _AddTimerModalState extends State<_AddTimerModal> {
 
   @override
   Widget build(BuildContext context) {
+    final c = SettingsProvider.of(context).colors;
+
     return Container(
       height: MediaQuery.of(context).size.height * 0.85,
-      decoration: const BoxDecoration(
-        color: Color(0xFF0A0A0F),
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      decoration: BoxDecoration(
+        color: c.background,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       ),
       child: Column(
         children: [
@@ -905,7 +870,7 @@ class _AddTimerModalState extends State<_AddTimerModal> {
             width: 36,
             height: 4,
             decoration: BoxDecoration(
-              color: const Color(0xFF3A3A4A),
+              color: c.muted,
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -918,12 +883,12 @@ class _AddTimerModalState extends State<_AddTimerModal> {
               children: [
                 GestureDetector(
                   onTap: () => Navigator.pop(context),
-                  child: const Text('Cancel',
-                      style: TextStyle(color: Color(0xFF8A85A0),
+                  child: Text('Cancel',
+                      style: TextStyle(color: c.subtext,
                           fontSize: 16, fontWeight: FontWeight.w400)),
                 ),
-                const Text('Add Timer',
-                    style: TextStyle(color: Colors.white, fontSize: 17,
+                Text('Add Timer',
+                    style: TextStyle(color: c.text, fontSize: 17,
                         fontWeight: FontWeight.w600)),
                 GestureDetector(
                   onTap: _pickerIsZero
@@ -931,9 +896,7 @@ class _AddTimerModalState extends State<_AddTimerModal> {
                       : () => Navigator.pop(context, _pickerDuration),
                   child: Text('Start',
                       style: TextStyle(
-                        color: _pickerIsZero
-                            ? const Color(0xFF4A4A5A)
-                            : const Color(0xFF6C5CE7),
+                        color: _pickerIsZero ? c.muted : c.accent,
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
                       )),
@@ -960,25 +923,21 @@ class _AddTimerModalState extends State<_AddTimerModal> {
                             const EdgeInsets.symmetric(horizontal: 16),
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(12),
-                          color: const Color(0xFF6C5CE7)
-                              .withValues(alpha: 0.1),
+                          color: c.accentWash(0.1),
                           border: Border.all(
-                            color: const Color(0xFF6C5CE7)
-                                .withValues(alpha: 0.25),
-                            width: 1,
-                          ),
+                              color: c.accentWash(0.25), width: 1),
                         ),
                       ),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          _buildWheel(_hoursController, 24, _hours,
+                          _buildWheel(c, _hoursController, 24, _hours,
                               (i) => setState(() => _hours = i), 'h'),
                           const SizedBox(width: 8),
-                          _buildWheel(_minutesController, 60, _minutes,
+                          _buildWheel(c, _minutesController, 60, _minutes,
                               (i) => setState(() => _minutes = i), 'm'),
                           const SizedBox(width: 8),
-                          _buildWheel(_secondsController, 60, _seconds,
+                          _buildWheel(c, _secondsController, 60, _seconds,
                               (i) => setState(() => _seconds = i), 's'),
                         ],
                       ),
@@ -989,31 +948,31 @@ class _AddTimerModalState extends State<_AddTimerModal> {
                 const SizedBox(height: 28),
 
                 // Quick presets
-                const Text('Quick timers',
-                    style: TextStyle(color: Color(0xFF6A6A7A), fontSize: 12,
+                Text('Quick timers',
+                    style: TextStyle(color: c.subtext, fontSize: 12,
                         fontWeight: FontWeight.w500, letterSpacing: 1.2)),
                 const SizedBox(height: 10),
                 Row(
                   children: [
-                    _quickPreset('1m', const Duration(minutes: 1)),
+                    _quickPreset(c, '1m', const Duration(minutes: 1)),
                     const SizedBox(width: 8),
-                    _quickPreset('3m', const Duration(minutes: 3)),
+                    _quickPreset(c, '3m', const Duration(minutes: 3)),
                     const SizedBox(width: 8),
-                    _quickPreset('5m', const Duration(minutes: 5)),
+                    _quickPreset(c, '5m', const Duration(minutes: 5)),
                     const SizedBox(width: 8),
-                    _quickPreset('10m', const Duration(minutes: 10)),
+                    _quickPreset(c, '10m', const Duration(minutes: 10)),
                     const SizedBox(width: 8),
-                    _quickPreset('15m', const Duration(minutes: 15)),
+                    _quickPreset(c, '15m', const Duration(minutes: 15)),
                     const SizedBox(width: 8),
-                    _quickPreset('30m', const Duration(minutes: 30)),
+                    _quickPreset(c, '30m', const Duration(minutes: 30)),
                   ],
                 ),
 
                 // Recents in modal
                 if (widget.recentTimers.isNotEmpty) ...[
                   const SizedBox(height: 32),
-                  const Text('RECENTS',
-                      style: TextStyle(color: Color(0xFF6A6A7A), fontSize: 12,
+                  Text('RECENTS',
+                      style: TextStyle(color: c.subtext, fontSize: 12,
                           fontWeight: FontWeight.w500, letterSpacing: 1.2)),
                   const SizedBox(height: 10),
                   for (int i = 0; i < widget.recentTimers.length; i++) ...[
@@ -1028,8 +987,8 @@ class _AddTimerModalState extends State<_AddTimerModal> {
                               child: Text(
                                 _formatDurationShort(
                                     widget.recentTimers[i]),
-                                style: const TextStyle(
-                                    color: Colors.white,
+                                style: TextStyle(
+                                    color: c.text,
                                     fontSize: 18,
                                     fontWeight: FontWeight.w300),
                               ),
@@ -1039,26 +998,21 @@ class _AddTimerModalState extends State<_AddTimerModal> {
                               height: 40,
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
-                                color: const Color(0xFF6C5CE7)
-                                    .withValues(alpha: 0.2),
+                                color: c.accentWash(0.2),
                                 border: Border.all(
-                                  color: const Color(0xFF6C5CE7)
-                                      .withValues(alpha: 0.3),
-                                  width: 1.5,
-                                ),
+                                    color: c.accentWash(0.3), width: 1.5),
                               ),
-                              child: const Icon(Icons.play_arrow_rounded,
-                                  color: Color(0xFFA29BFE), size: 22),
+                              child: Icon(Icons.play_arrow_rounded,
+                                  color: c.accentSoft, size: 22),
                             ),
                           ],
                         ),
                       ),
                     ),
                     if (i < widget.recentTimers.length - 1)
-                      const Padding(
-                        padding: EdgeInsets.only(left: 8),
-                        child:
-                            Divider(color: Color(0xFF1E1E2E), height: 1),
+                      Padding(
+                        padding: const EdgeInsets.only(left: 8),
+                        child: Divider(color: c.divider, height: 1),
                       ),
                   ],
                 ],
@@ -1073,6 +1027,7 @@ class _AddTimerModalState extends State<_AddTimerModal> {
   }
 
   Widget _buildWheel(
+    AppColors c,
     FixedExtentScrollController controller,
     int count,
     int selectedValue,
@@ -1100,7 +1055,7 @@ class _AddTimerModalState extends State<_AddTimerModal> {
                   child: Text(
                     index.toString().padLeft(2, '0'),
                     style: TextStyle(
-                      color: sel ? Colors.white : const Color(0xFF4A4A5A),
+                      color: sel ? c.text : c.muted,
                       fontSize: sel ? 28 : 20,
                       fontWeight: sel ? FontWeight.w600 : FontWeight.w300,
                     ),
@@ -1112,13 +1067,13 @@ class _AddTimerModalState extends State<_AddTimerModal> {
           ),
         ),
         Text(label,
-            style: const TextStyle(color: Color(0xFF6A6A7A), fontSize: 14,
+            style: TextStyle(color: c.subtext, fontSize: 14,
                 fontWeight: FontWeight.w400)),
       ],
     );
   }
 
-  Widget _quickPreset(String label, Duration duration) {
+  Widget _quickPreset(AppColors c, String label, Duration duration) {
     return Expanded(
       child: GestureDetector(
         onTap: () => _setQuickTimer(duration),
@@ -1126,12 +1081,12 @@ class _AddTimerModalState extends State<_AddTimerModal> {
           padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(10),
-            color: const Color(0xFF1A1A24),
-            border: Border.all(color: const Color(0xFF2A2A3A), width: 1),
+            color: c.card,
+            border: Border.all(color: c.divider, width: 1),
           ),
           child: Center(
             child: Text(label,
-                style: const TextStyle(color: Color(0xFFA29BFE),
+                style: TextStyle(color: c.accentSoft,
                     fontSize: 13, fontWeight: FontWeight.w600)),
           ),
         ),

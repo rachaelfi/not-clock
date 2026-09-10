@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:not_clock/main.dart';
 
 class RepeatDayPicker extends StatefulWidget {
   final List<int> selectedDays;
@@ -30,35 +31,38 @@ class _RepeatDayPickerState extends State<RepeatDayPicker> {
 
   @override
   Widget build(BuildContext context) {
+    final c = SettingsProvider.of(context).colors;
+
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0A0F),
+      backgroundColor: c.background,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF0A0A0F),
+        backgroundColor: c.background,
         elevation: 0,
         leading: GestureDetector(
           onTap: () => Navigator.pop(context, _selected),
-          child: const Padding(
-            padding: EdgeInsets.all(12),
-            child: Icon(Icons.arrow_back_ios, color: Color(0xFFA29BFE), size: 20),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Icon(Icons.arrow_back_ios, color: c.accentSoft, size: 20),
           ),
         ),
-        title: const Text('Repeat',
-            style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w600)),
+        title: Text('Repeat',
+            style: TextStyle(
+                color: c.text, fontSize: 17, fontWeight: FontWeight.w600)),
         centerTitle: true,
       ),
       body: Container(
         margin: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: const Color(0xFF12121A),
+          color: c.surface,
           borderRadius: BorderRadius.circular(16),
         ),
         child: ListView.separated(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           itemCount: 7,
-          separatorBuilder: (_, __) => const Padding(
-            padding: EdgeInsets.only(left: 16),
-            child: Divider(color: Color(0xFF1E1E2E), height: 1),
+          separatorBuilder: (_, __) => Padding(
+            padding: const EdgeInsets.only(left: 16),
+            child: Divider(color: c.divider, height: 1),
           ),
           itemBuilder: (context, index) {
             final isSelected = _selected.contains(index);
@@ -79,9 +83,9 @@ class _RepeatDayPickerState extends State<RepeatDayPicker> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(_dayNames[index],
-                        style: const TextStyle(color: Colors.white, fontSize: 16)),
+                        style: TextStyle(color: c.text, fontSize: 16)),
                     if (isSelected)
-                      const Icon(Icons.check, color: Color(0xFF6C5CE7), size: 20),
+                      Icon(Icons.check, color: c.accent, size: 20),
                   ],
                 ),
               ),

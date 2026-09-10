@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:not_clock/models/app_settings.dart';
+import 'package:not_clock/theme/app_theme.dart';
 import 'package:not_clock/screens/world_clock.dart';
 import 'package:not_clock/screens/alarms.dart';
 import 'package:not_clock/screens/sleep.dart';
@@ -9,12 +10,14 @@ import 'package:not_clock/screens/settings_screen.dart';
 import 'package:not_clock/services/alarm_scheduler.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
   runApp(const AlarmApp());
 }
 
 /// Global navigator key — allows the alarm scheduler to push screens
 /// (like the firing screen) from outside the widget tree.
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
 class AlarmApp extends StatefulWidget {
   const AlarmApp({super.key});
 
@@ -44,20 +47,22 @@ class _AlarmAppState extends State<AlarmApp> {
   Widget build(BuildContext context) {
     return SettingsProvider(
       settings: _settings,
-      child: MaterialApp(
-        title: 'Not Clock',
-        debugShowCheckedModeBanner: false,
-        // The navigator key lets AlarmScheduler push the firing screen
-        navigatorKey: navigatorKey,
-        theme: ThemeData.dark().copyWith(
-          scaffoldBackgroundColor: const Color(0xFF0A0A0F),
-          colorScheme: const ColorScheme.dark(
-            primary: Color(0xFF6C5CE7),
-            secondary: Color(0xFFA29BFE),
-            surface: Color(0xFF12121A),
-          ),
-        ),
-        home: const MainScreen(),
+      // ListenableBuilder sits INSIDE the provider so MaterialApp itself is
+      // rebuilt when the theme changes. Without it, ThemeData keeps the colors
+      // it was first built with and stock widgets (dialogs, switches, text
+      // cursors) stay purple no matter what the user picks.
+      child: ListenableBuilder(
+        listenable: _settings,
+        builder: (context, _) {
+          return MaterialApp(
+            title: 'Not Clock',
+            debugShowCheckedModeBanner: false,
+            // The navigator key lets AlarmScheduler push the firing screen
+            navigatorKey: navigatorKey,
+            theme: AppPalette.materialTheme(_settings.colors),
+            home: const MainScreen(),
+          );
+        },
       ),
     );
   }
@@ -72,17 +77,28 @@ class SettingsProvider extends InheritedNotifier<AppSettings> {
     required super.child,
   }) : super(notifier: settings);
 
+  /// Subscribes the calling widget to settings changes.
   static AppSettings of(BuildContext context) {
     final provider =
         context.dependOnInheritedWidgetOfExactType<SettingsProvider>();
     return provider!.notifier!;
   }
+
+  /// Same lookup, but does NOT subscribe. Use inside onTap callbacks and
+  /// initState, where creating a dependency is either useless or an error.
+  static AppSettings read(BuildContext context) {
+    final provider = context.getInheritedWidgetOfExactType<SettingsProvider>();
+    return provider!.notifier!;
+  }
+
+  /// Shorthand for the resolved palette.
+  static AppColors colorsOf(BuildContext context) => of(context).colors;
 }
 
 // ─── Helper to open settings from any screen ─────────────────────────────────
 
 void openSettingsScreen(BuildContext context) {
-  final settings = SettingsProvider.of(context);
+  final settings = SettingsProvider.read(context);
   Navigator.push(
     context,
     PageRouteBuilder(
@@ -105,16 +121,16 @@ class SettingsGearButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = SettingsProvider.of(context).colors;
     return GestureDetector(
       onTap: () => openSettingsScreen(context),
       child: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: const Color(0xFF6C5CE7).withValues(alpha: 0.15),
+          color: c.accentWash(0.15),
           borderRadius: BorderRadius.circular(10),
         ),
-        child: const Icon(Icons.settings_outlined,
-            color: Color(0xFFA29BFE), size: 20),
+        child: Icon(Icons.settings_outlined, color: c.accentSoft, size: 20),
       ),
     );
   }
@@ -135,7 +151,7 @@ class _MainScreenState extends State<MainScreen> {
   @override
   Widget build(BuildContext context) {
     // Listen so all tabs rebuild on settings change
-    SettingsProvider.of(context);
+    final c = SettingsProvider.of(context).colors;
 
     const screens = <Widget>[
       WorldClockScreen(),
@@ -146,15 +162,16 @@ class _MainScreenState extends State<MainScreen> {
     ];
 
     return Scaffold(
+      backgroundColor: c.background,
       body: IndexedStack(
         index: _currentIndex,
         children: screens,
       ),
       bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
-          color: Color(0xFF12121A),
+        decoration: BoxDecoration(
+          color: c.surface,
           border: Border(
-            top: BorderSide(color: Color(0xFF1E1E2E), width: 0.5),
+            top: BorderSide(color: c.divider, width: 0.5),
           ),
         ),
         child: SafeArea(
@@ -163,11 +180,11 @@ class _MainScreenState extends State<MainScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _buildNavItem(Icons.language, 'World Clock', 0),
-                _buildNavItem(Icons.alarm, 'Alarms', 1),
-                _buildNavItem(Icons.bedtime_rounded, 'Sleep', 2),
-                _buildNavItem(Icons.timer_outlined, 'Stopwatch', 3),
-                _buildNavItem(Icons.hourglass_bottom_rounded, 'Timers', 4),
+                _buildNavItem(c, Icons.language, 'World Clock', 0),
+                _buildNavItem(c, Icons.alarm, 'Alarms', 1),
+                _buildNavItem(c, Icons.bedtime_rounded, 'Sleep', 2),
+                _buildNavItem(c, Icons.timer_outlined, 'Stopwatch', 3),
+                _buildNavItem(c, Icons.hourglass_bottom_rounded, 'Timers', 4),
               ],
             ),
           ),
@@ -176,10 +193,9 @@ class _MainScreenState extends State<MainScreen> {
     );
   }
 
-  Widget _buildNavItem(IconData icon, String label, int index) {
+  Widget _buildNavItem(AppColors c, IconData icon, String label, int index) {
     final isSelected = _currentIndex == index;
-    final color =
-        isSelected ? const Color(0xFF6C5CE7) : const Color(0xFF4A4A5A);
+    final color = isSelected ? c.accent : c.muted;
 
     return GestureDetector(
       onTap: () => setState(() => _currentIndex = index),

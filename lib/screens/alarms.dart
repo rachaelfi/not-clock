@@ -3,7 +3,7 @@ import 'package:not_clock/main.dart';
 import 'package:not_clock/models/alarm_data.dart';
 import 'package:not_clock/screens/alarm_edit_screen.dart';
 import 'package:not_clock/services/storage_service.dart';
-import 'package:not_clock/models/app_settings.dart';
+import 'package:not_clock/theme/app_theme.dart';
 
 class AlarmsScreen extends StatefulWidget {
   const AlarmsScreen({super.key});
@@ -42,20 +42,21 @@ class _AlarmsScreenState extends State<AlarmsScreen> {
   }
 
   void _showTimeUntilSnackbar(AlarmData alarm) {
+    final c = SettingsProvider.read(context).colors;
     ScaffoldMessenger.of(context).clearSnackBars();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
           children: [
-            const Icon(Icons.alarm_on, color: Color(0xFFA29BFE), size: 20),
+            Icon(Icons.alarm_on, color: c.accentSoft, size: 20),
             const SizedBox(width: 12),
             Text(
               'Alarm in ${alarm.timeUntilString()}',
-              style: const TextStyle(color: Colors.white, fontSize: 14),
+              style: TextStyle(color: c.text, fontSize: 14),
             ),
           ],
         ),
-        backgroundColor: const Color(0xFF1E1E2E),
+        backgroundColor: c.card,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         margin: const EdgeInsets.fromLTRB(24, 0, 24, 20),
@@ -88,7 +89,7 @@ class _AlarmsScreenState extends State<AlarmsScreen> {
         _sortAlarms();
       });
       _saveAlarms(); // Persist to disk
-      _showTimeUntilSnackbar(result);
+      if (mounted) _showTimeUntilSnackbar(result);
     }
   }
 
@@ -126,6 +127,9 @@ class _AlarmsScreenState extends State<AlarmsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final settings = SettingsProvider.of(context);
+    final c = settings.colors;
+
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -135,10 +139,10 @@ class _AlarmsScreenState extends State<AlarmsScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
+                Text(
                   'Alarms',
                   style: TextStyle(
-                    color: Colors.white,
+                    color: c.text,
                     fontSize: 32,
                     fontWeight: FontWeight.w700,
                   ),
@@ -150,11 +154,10 @@ class _AlarmsScreenState extends State<AlarmsScreen> {
                       child: Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF6C5CE7).withValues(alpha: 0.15),
+                          color: c.accentWash(0.15),
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        child:
-                            const Icon(Icons.add, color: Color(0xFFA29BFE), size: 24),
+                        child: Icon(Icons.add, color: c.accentSoft, size: 24),
                       ),
                     ),
                     const SizedBox(width: 10),
@@ -170,16 +173,11 @@ class _AlarmsScreenState extends State<AlarmsScreen> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.alarm_off,
-                              size: 64,
-                              color: Colors.white.withValues(alpha: 0.15)),
+                          Icon(Icons.alarm_off, size: 64, color: c.muted),
                           const SizedBox(height: 16),
                           Text(
                             'No alarms',
-                            style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.3),
-                              fontSize: 16,
-                            ),
+                            style: TextStyle(color: c.subtext, fontSize: 16),
                           ),
                         ],
                       ),
@@ -194,12 +192,9 @@ class _AlarmsScreenState extends State<AlarmsScreen> {
                           child: Container(
                             padding: const EdgeInsets.all(20),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF14141E),
+                              color: c.card,
                               borderRadius: BorderRadius.circular(16),
-                              border: Border.all(
-                                color: const Color(0xFF1E1E2E),
-                                width: 1,
-                              ),
+                              border: Border.all(color: c.divider, width: 1),
                             ),
                             child: Row(
                               children: [
@@ -209,11 +204,12 @@ class _AlarmsScreenState extends State<AlarmsScreen> {
                                         CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        SettingsProvider.of(context).formatTime(alarm.hour24, alarm.minute),
+                                        settings.formatTime(
+                                            alarm.hour24, alarm.minute),
                                         style: TextStyle(
                                           color: alarm.enabled
-                                              ? Colors.white
-                                              : const Color(0xFF4A4A5A),
+                                              ? c.text
+                                              : c.muted,
                                           fontSize: 36,
                                           fontWeight: FontWeight.w300,
                                         ),
@@ -223,14 +219,16 @@ class _AlarmsScreenState extends State<AlarmsScreen> {
                                         '${alarm.label}  ·  ${alarm.daysString}',
                                         style: TextStyle(
                                           color: alarm.enabled
-                                              ? const Color(0xFF6A6A7A)
-                                              : const Color(0xFF3A3A4A),
+                                              ? c.subtext
+                                              : c.muted,
                                           fontSize: 13,
                                         ),
                                       ),
                                     ],
                                   ),
                                 ),
+                                // Colors come from ThemeData.switchTheme, set in
+                                // AppPalette.materialTheme.
                                 Switch(
                                   value: alarm.enabled,
                                   onChanged: (val) {
@@ -242,8 +240,6 @@ class _AlarmsScreenState extends State<AlarmsScreen> {
                                       _showTimeUntilSnackbar(alarm);
                                     }
                                   },
-                                  activeColor: const Color(0xFF6C5CE7),
-                                  inactiveTrackColor: const Color(0xFF2A2A3A),
                                 ),
                               ],
                             ),

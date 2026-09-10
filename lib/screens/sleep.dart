@@ -3,7 +3,9 @@ import 'dart:async';
 import 'package:not_clock/main.dart';
 import 'package:not_clock/models/alarm_data.dart';
 import 'package:not_clock/models/app_settings.dart';
+import 'package:not_clock/theme/app_theme.dart';
 import 'package:not_clock/screens/alarm_sub/sound_picker.dart';
+import 'package:not_clock/screens/night_clock_screen.dart';
 import 'package:not_clock/services/alarm_scheduler.dart';
 
 class SleepScreen extends StatefulWidget {
@@ -111,43 +113,19 @@ class _SleepScreenState extends State<SleepScreen>
     return '$hours h ${roundedMin.toString().padLeft(2, '0')} min';
   }
 
-  void _setQuickSleepAlarm(double hours) {
+  /// The exact moment the sleep alarm will fire — today if it's still ahead,
+  /// otherwise tomorrow. The Night Clock uses this to know when to say
+  /// "Good morning!".
+  DateTime get _nextAlarmDateTime {
     final now = DateTime.now();
-    final alarmTime = now.add(Duration(minutes: (hours * 60).round()));
-    final is24h = SettingsProvider.of(context).use24HourFormat;
-
-    int hour24 = alarmTime.hour;
-    int minuteIndex = (alarmTime.minute / 5).round();
-    if (minuteIndex >= 12) minuteIndex = 0;
-
-    setState(() {
-      _setFromHour24(hour24);
-      _selectedMinute = minuteIndex;
-      _alarmIsSet = true;
-
-      if (is24h) {
-        _hourController.animateToItem(hour24,
-            duration: const Duration(milliseconds: 400), curve: Curves.easeOut);
-      } else {
-        _hourController.animateToItem(_selectedHour - 1,
-            duration: const Duration(milliseconds: 400), curve: Curves.easeOut);
-        _amPmController.animateToItem(_isAM ? 0 : 1,
-            duration: const Duration(milliseconds: 400), curve: Curves.easeOut);
-      }
-      _minuteController.animateToItem(minuteIndex,
-          duration: const Duration(milliseconds: 400), curve: Curves.easeOut);
-    });
+    var t = DateTime(
+        now.year, now.month, now.day, _hour24, _selectedMinute * 5);
+    if (!t.isAfter(now)) t = t.add(const Duration(days: 1));
+    return t;
   }
 
-  void _toggleAlarm() {
-    setState(() {
-      _alarmIsSet = !_alarmIsSet;
-    });
-
-    // Register or unregister the sleep alarm with the scheduler
-    if (_alarmIsSet) {
-      // Build an AlarmData from the sleep screen's current settings
-      final sleepAlarm = AlarmData(
+  /// Build an AlarmData from the sleep screen's current settings.
+  AlarmData _buildSleepAlarmData() => AlarmData(
         hour: _selectedHour,
         minute: _selectedMinute * 5, // Convert 5-min index to actual minutes
         isAM: _isAM,
@@ -158,17 +136,102 @@ class _SleepScreenState extends State<SleepScreen>
         snoozeEnabled: true,
         snoozeDurationMinutes: 9,
       );
-      AlarmScheduler.setSleepAlarm(sleepAlarm);
-      // Listen for when the alarm fires and gets dismissed
-      AlarmScheduler.onSleepAlarmDismissed = () {
-        if (mounted) {
-          setState(() => _alarmIsSet = false);
-        }
-      };
+
+  void _registerSleepAlarm() {
+    AlarmScheduler.setSleepAlarm(_buildSleepAlarmData());
+    // Listen for when the alarm fires and gets dismissed
+    AlarmScheduler.onSleepAlarmDismissed = () {
+      if (mounted) {
+        setState(() => _alarmIsSet = false);
+      }
+    };
+  }
+
+  void _unregisterSleepAlarm() {
+    AlarmScheduler.setSleepAlarm(null);
+    AlarmScheduler.onSleepAlarmDismissed = null;
+  }
+
+  /// Move the three wheels to match the current values.
+  void _syncWheels({bool animate = true}) {
+    final is24h = SettingsProvider.read(context).use24HourFormat;
+    final hourItem = is24h ? _hour24 : _selectedHour - 1;
+
+    void go(FixedExtentScrollController ctrl, int item) {
+      if (!ctrl.hasClients) return;
+      if (animate) {
+        ctrl.animateToItem(item,
+            duration: const Duration(milliseconds: 400), curve: Curves.easeOut);
+      } else {
+        ctrl.jumpToItem(item);
+      }
+    }
+
+    go(_hourController, hourItem);
+    go(_minuteController, _selectedMinute);
+    if (!is24h) go(_amPmController, _isAM ? 0 : 1);
+  }
+
+  /// Stop on the night clock cancels the sleep alarm too, so the user has to
+  /// press Set Sleep Alarm again to bring the night clock back.
+  void _onNightClockStop() {
+    _unregisterSleepAlarm();
+    if (mounted) setState(() => _alarmIsSet = false);
+  }
+
+  /// The user picked a new time from inside the night clock. Mirror it back
+  /// into the wheels and re-register with the scheduler.
+  void _onNightClockAlarmChanged(DateTime newTime) {
+    if (!mounted) return;
+    setState(() {
+      _setFromHour24(newTime.hour);
+      _selectedMinute = (newTime.minute ~/ 5).clamp(0, 11);
+      _alarmIsSet = true;
+    });
+    _syncWheels(animate: false); // the screen is behind the night clock
+    _registerSleepAlarm();
+  }
+
+  void _setQuickSleepAlarm(double hours) {
+    final now = DateTime.now();
+    final alarmTime = now.add(Duration(minutes: (hours * 60).round()));
+
+    int minuteIndex = (alarmTime.minute / 5).round();
+    if (minuteIndex >= 12) minuteIndex = 0;
+
+    setState(() {
+      _setFromHour24(alarmTime.hour);
+      _selectedMinute = minuteIndex;
+      _alarmIsSet = true;
+    });
+    _syncWheels();
+
+    // The quick buttons used to flip _alarmIsSet without telling the scheduler,
+    // so the alarm never actually fired. They register it now.
+    _registerSleepAlarm();
+  }
+
+  void _toggleAlarm() {
+    setState(() {
+      _alarmIsSet = !_alarmIsSet;
+    });
+
+    // Register or unregister the sleep alarm with the scheduler
+    if (_alarmIsSet) {
+      _registerSleepAlarm();
+
+      // Night Clock takes over the screen for the night, if enabled.
+      if (SettingsProvider.read(context).nightClockEnabled) {
+        openNightClock(
+          context,
+          alarmTime: _nextAlarmDateTime,
+          onStop: _onNightClockStop,
+          onAlarmChanged: _onNightClockAlarmChanged,
+        );
+      }
     } else {
       // User cancelled the sleep alarm
-      AlarmScheduler.setSleepAlarm(null);
-      AlarmScheduler.onSleepAlarmDismissed = null;
+      _unregisterSleepAlarm();
     }
   }
 
@@ -186,18 +249,7 @@ class _SleepScreenState extends State<SleepScreen>
     if (result != null) {
       setState(() => _selectedSound = result);
       if (_alarmIsSet) {
-        final updatedAlarm = AlarmData(
-          hour: _selectedHour,
-          minute: _selectedMinute * 5,
-          isAM: _isAM,
-          label: 'Sleep',
-          enabled: true,
-          sound: _selectedSound,
-          flashEnabled: _flashEnabled,
-          snoozeEnabled: true,
-          snoozeDurationMinutes: 9,
-        );
-        AlarmScheduler.setSleepAlarm(updatedAlarm);
+        AlarmScheduler.setSleepAlarm(_buildSleepAlarmData());
       }
     }
   }
@@ -205,6 +257,7 @@ class _SleepScreenState extends State<SleepScreen>
   @override
   Widget build(BuildContext context) {
     final settings = SettingsProvider.of(context);
+    final c = settings.colors;
 
     return SafeArea(
       child: Padding(
@@ -215,8 +268,8 @@ class _SleepScreenState extends State<SleepScreen>
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Sleep',
-                    style: TextStyle(color: Colors.white, fontSize: 32,
+                Text('Sleep',
+                    style: TextStyle(color: c.text, fontSize: 32,
                         fontWeight: FontWeight.w700, letterSpacing: -0.5)),
                 const SettingsGearButton(),
               ],
@@ -235,14 +288,14 @@ class _SleepScreenState extends State<SleepScreen>
                     gradient: LinearGradient(
                       begin: Alignment.topLeft, end: Alignment.bottomRight,
                       colors: [
-                        const Color(0xFF6C5CE7).withValues(alpha: 0.15),
-                        const Color(0xFF6C5CE7).withValues(alpha: 0.05),
+                        c.accentWash(0.15),
+                        c.accentWash(0.05),
                       ],
                     ),
                     border: Border.all(
                       color: Color.lerp(
-                        const Color(0xFF6C5CE7).withValues(alpha: 0.2),
-                        const Color(0xFF6C5CE7).withValues(alpha: 0.5),
+                        c.accentWash(0.2),
+                        c.accentWash(0.5),
                         _alarmIsSet ? _glowAnimation.value : 0.0,
                       )!,
                       width: 1,
@@ -254,16 +307,12 @@ class _SleepScreenState extends State<SleepScreen>
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Icon(Icons.nightlight_round,
-                              color: _alarmIsSet
-                                  ? const Color(0xFFA29BFE)
-                                  : const Color(0xFF4A4A5A),
+                              color: _alarmIsSet ? c.accentSoft : c.muted,
                               size: 18),
                           const SizedBox(width: 8),
                           Text('sleep duration',
                               style: TextStyle(
-                                color: _alarmIsSet
-                                    ? const Color(0xFF8A85A0)
-                                    : const Color(0xFF4A4A5A),
+                                color: _alarmIsSet ? c.subtext : c.muted,
                                 fontSize: 13, fontWeight: FontWeight.w400,
                                 letterSpacing: 1.5,
                               )),
@@ -272,8 +321,7 @@ class _SleepScreenState extends State<SleepScreen>
                       const SizedBox(height: 8),
                       Text('~ ${_formatSleepDuration()}',
                           style: TextStyle(
-                            color: _alarmIsSet
-                                ? Colors.white : const Color(0xFF6A6A7A),
+                            color: _alarmIsSet ? c.text : c.subtext,
                             fontSize: 28, fontWeight: FontWeight.w300,
                             letterSpacing: 1.0,
                           )),
@@ -296,17 +344,14 @@ class _SleepScreenState extends State<SleepScreen>
                     height: 44,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: const Color(0xFF6C5CE7).withValues(alpha: 0.15),
-                      border: Border.all(
-                        color: const Color(0xFF6C5CE7).withValues(alpha: 0.3),
-                        width: 1,
-                      ),
+                      color: c.accentWash(0.15),
+                      border: Border.all(color: c.accentWash(0.3), width: 1),
                     ),
                     child: Icon(
                       _selectedSound == 'None'
                           ? Icons.volume_off
                           : Icons.music_note,
-                      color: const Color(0xFFA29BFE),
+                      color: c.accentSoft,
                       size: 20,
                     ),
                   ),
@@ -318,8 +363,7 @@ class _SleepScreenState extends State<SleepScreen>
                     _selectedSound == 'None'
                         ? 'No sound'
                         : soundDisplayName(_selectedSound),
-                    style: const TextStyle(
-                        color: Color(0xFF6A6A7A), fontSize: 13),
+                    style: TextStyle(color: c.subtext, fontSize: 13),
                   ),
                 ),
                 // Flash toggle
@@ -330,13 +374,9 @@ class _SleepScreenState extends State<SleepScreen>
                         horizontal: 12, vertical: 8),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(20),
-                      color: _flashEnabled
-                          ? const Color(0xFF6C5CE7).withValues(alpha: 0.25)
-                          : const Color(0xFF1A1A24),
+                      color: _flashEnabled ? c.accentWash(0.25) : c.card,
                       border: Border.all(
-                        color: _flashEnabled
-                            ? const Color(0xFF6C5CE7).withValues(alpha: 0.4)
-                            : const Color(0xFF2A2A3A),
+                        color: _flashEnabled ? c.accentWash(0.4) : c.divider,
                         width: 1,
                       ),
                     ),
@@ -345,17 +385,13 @@ class _SleepScreenState extends State<SleepScreen>
                       children: [
                         Icon(
                           Icons.flash_on,
-                          color: _flashEnabled
-                              ? const Color(0xFFA29BFE)
-                              : const Color(0xFF4A4A5A),
+                          color: _flashEnabled ? c.accentSoft : c.muted,
                           size: 16,
                         ),
                         const SizedBox(width: 4),
                         Text('Flash',
                             style: TextStyle(
-                              color: _flashEnabled
-                                  ? const Color(0xFFA29BFE)
-                                  : const Color(0xFF4A4A5A),
+                              color: _flashEnabled ? c.accentSoft : c.muted,
                               fontSize: 12,
                               fontWeight: FontWeight.w500,
                             )),
@@ -367,10 +403,10 @@ class _SleepScreenState extends State<SleepScreen>
             ),
 
             const SizedBox(height: 20),
-            Expanded(child: _buildTimePicker(settings)),
-            _buildQuickSleepButtons(),
+            Expanded(child: _buildTimePicker(settings, c)),
+            _buildQuickSleepButtons(c),
             const SizedBox(height: 16),
-            _buildSetAlarmButton(),
+            _buildSetAlarmButton(c),
             const SizedBox(height: 24),
           ],
         ),
@@ -378,7 +414,7 @@ class _SleepScreenState extends State<SleepScreen>
     );
   }
 
-  Widget _buildTimePicker(AppSettings settings) {
+  Widget _buildTimePicker(AppSettings settings, AppColors c) {
     final is24h = settings.use24HourFormat;
 
     return Stack(
@@ -389,10 +425,8 @@ class _SleepScreenState extends State<SleepScreen>
           margin: const EdgeInsets.symmetric(horizontal: 8),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(14),
-            color: const Color(0xFF6C5CE7).withValues(alpha: 0.1),
-            border: Border.all(
-              color: const Color(0xFF6C5CE7).withValues(alpha: 0.3), width: 1,
-            ),
+            color: c.accentWash(0.1),
+            border: Border.all(color: c.accentWash(0.3), width: 1),
           ),
         ),
         Row(
@@ -400,17 +434,17 @@ class _SleepScreenState extends State<SleepScreen>
           children: [
             SizedBox(
               width: 80, height: 220,
-              child: is24h ? _build24HourWheel() : _build12HourWheel(),
+              child: is24h ? _build24HourWheel(c) : _build12HourWheel(c),
             ),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 4),
-              child: Text(':', style: TextStyle(color: Color(0xFF6C5CE7),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Text(':', style: TextStyle(color: c.accent,
                   fontSize: 32, fontWeight: FontWeight.w300)),
             ),
-            SizedBox(width: 80, height: 220, child: _buildMinuteWheel()),
+            SizedBox(width: 80, height: 220, child: _buildMinuteWheel(c)),
             if (!is24h) ...[
               const SizedBox(width: 12),
-              SizedBox(width: 60, height: 220, child: _buildAmPmWheel()),
+              SizedBox(width: 60, height: 220, child: _buildAmPmWheel(c)),
             ],
           ],
         ),
@@ -418,7 +452,7 @@ class _SleepScreenState extends State<SleepScreen>
     );
   }
 
-  Widget _build24HourWheel() {
+  Widget _build24HourWheel(AppColors c) {
     return IgnorePointer(
       ignoring: _alarmIsSet, // Locked when alarm is set
       child: ListWheelScrollView.useDelegate(
@@ -432,7 +466,7 @@ class _SleepScreenState extends State<SleepScreen>
           final isSelected = index == _hour24;
           return Center(child: Text(index.toString().padLeft(2, '0'),
               style: TextStyle(
-                color: isSelected ? Colors.white : const Color(0xFF4A4A5A),
+                color: isSelected ? c.text : c.muted,
                 fontSize: isSelected ? 32 : 24,
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.w300,
               )));
@@ -442,7 +476,7 @@ class _SleepScreenState extends State<SleepScreen>
     ));
   }
 
-  Widget _build12HourWheel() {
+  Widget _build12HourWheel(AppColors c) {
     return IgnorePointer(
       ignoring: _alarmIsSet, // Locked when alarm is set
       child: ListWheelScrollView.useDelegate(
@@ -457,7 +491,7 @@ class _SleepScreenState extends State<SleepScreen>
           final isSelected = hour == _selectedHour;
           return Center(child: Text(hour.toString(),
               style: TextStyle(
-                color: isSelected ? Colors.white : const Color(0xFF4A4A5A),
+                color: isSelected ? c.text : c.muted,
                 fontSize: isSelected ? 32 : 24,
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.w300,
               )));
@@ -467,7 +501,7 @@ class _SleepScreenState extends State<SleepScreen>
     ));
   }
 
-  Widget _buildMinuteWheel() {
+  Widget _buildMinuteWheel(AppColors c) {
     return IgnorePointer(
       ignoring: _alarmIsSet, // Locked when alarm is set
       child: ListWheelScrollView.useDelegate(
@@ -482,7 +516,7 @@ class _SleepScreenState extends State<SleepScreen>
           final isSelected = index == _selectedMinute;
           return Center(child: Text(minute.toString().padLeft(2, '0'),
               style: TextStyle(
-                color: isSelected ? Colors.white : const Color(0xFF4A4A5A),
+                color: isSelected ? c.text : c.muted,
                 fontSize: isSelected ? 32 : 24,
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.w300,
               )));
@@ -492,7 +526,7 @@ class _SleepScreenState extends State<SleepScreen>
     ));
   }
 
-  Widget _buildAmPmWheel() {
+  Widget _buildAmPmWheel(AppColors c) {
     return IgnorePointer(
       ignoring: _alarmIsSet, // Locked when alarm is set
       child: ListWheelScrollView.useDelegate(
@@ -507,7 +541,7 @@ class _SleepScreenState extends State<SleepScreen>
           final isSelected = (index == 0) == _isAM;
           return Center(child: Text(label,
               style: TextStyle(
-                color: isSelected ? const Color(0xFFA29BFE) : const Color(0xFF4A4A5A),
+                color: isSelected ? c.accentSoft : c.muted,
                 fontSize: isSelected ? 20 : 16,
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
               )));
@@ -517,28 +551,28 @@ class _SleepScreenState extends State<SleepScreen>
     ));
   }
 
-  Widget _buildQuickSleepButtons() {
+  Widget _buildQuickSleepButtons(AppColors c) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Quick sleep',
-            style: TextStyle(color: Color(0xFF6A6A7A), fontSize: 12,
+        Text('Quick sleep',
+            style: TextStyle(color: c.subtext, fontSize: 12,
                 fontWeight: FontWeight.w500, letterSpacing: 1.2)),
         const SizedBox(height: 10),
         Row(
           children: [
-            _quickButton('6h', 6), const SizedBox(width: 10),
-            _quickButton('7h', 7), const SizedBox(width: 10),
-            _quickButton('7.5h', 7.5), const SizedBox(width: 10),
-            _quickButton('8h', 8), const SizedBox(width: 10),
-            _quickButton('9h', 9),
+            _quickButton(c, '6h', 6), const SizedBox(width: 10),
+            _quickButton(c, '7h', 7), const SizedBox(width: 10),
+            _quickButton(c, '7.5h', 7.5), const SizedBox(width: 10),
+            _quickButton(c, '8h', 8), const SizedBox(width: 10),
+            _quickButton(c, '9h', 9),
           ],
         ),
       ],
     );
   }
 
-  Widget _quickButton(String label, double hours) {
+  Widget _quickButton(AppColors c, String label, double hours) {
     return Expanded(
       child: GestureDetector(
         onTap: () => _setQuickSleepAlarm(hours),
@@ -546,18 +580,18 @@ class _SleepScreenState extends State<SleepScreen>
           padding: const EdgeInsets.symmetric(vertical: 12),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
-            color: const Color(0xFF1A1A24),
-            border: Border.all(color: const Color(0xFF2A2A3A), width: 1),
+            color: c.card,
+            border: Border.all(color: c.divider, width: 1),
           ),
           child: Center(child: Text(label,
-              style: const TextStyle(color: Color(0xFFA29BFE),
+              style: TextStyle(color: c.accentSoft,
                   fontSize: 14, fontWeight: FontWeight.w600))),
         ),
       ),
     );
   }
 
-  Widget _buildSetAlarmButton() {
+  Widget _buildSetAlarmButton(AppColors c) {
     return GestureDetector(
       onTap: _toggleAlarm,
       child: AnimatedContainer(
@@ -567,27 +601,20 @@ class _SleepScreenState extends State<SleepScreen>
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
           gradient: _alarmIsSet
-              ? const LinearGradient(colors: [Color(0xFF3A3545), Color(0xFF2A2535)])
-              : const LinearGradient(
-                  begin: Alignment.topLeft, end: Alignment.bottomRight,
-                  colors: [Color(0xFF6C5CE7), Color(0xFF5A4BD1)]),
-          boxShadow: _alarmIsSet ? [] : [
-            BoxShadow(
-              color: const Color(0xFF6C5CE7).withValues(alpha: 0.3),
-              blurRadius: 20, offset: const Offset(0, 8),
-            ),
-          ],
+              ? LinearGradient(colors: [c.cardAlt, c.card])
+              : c.accentGradient,
+          boxShadow: _alarmIsSet ? [] : c.accentGlow,
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(_alarmIsSet ? Icons.alarm_off : Icons.alarm_add,
-                color: _alarmIsSet ? const Color(0xFF8A85A0) : Colors.white,
+                color: _alarmIsSet ? c.subtext : c.onAccent,
                 size: 22),
             const SizedBox(width: 10),
             Text(_alarmIsSet ? 'Cancel Alarm' : 'Set Sleep Alarm',
                 style: TextStyle(
-                  color: _alarmIsSet ? const Color(0xFF8A85A0) : Colors.white,
+                  color: _alarmIsSet ? c.subtext : c.onAccent,
                   fontSize: 17, fontWeight: FontWeight.w600, letterSpacing: 0.3,
                 )),
           ],
