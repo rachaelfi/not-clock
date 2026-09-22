@@ -3,6 +3,9 @@ import 'package:not_clock/models/app_settings.dart';
 import 'package:not_clock/theme/app_theme.dart';
 import 'package:not_clock/screens/theme_picker_screen.dart';
 import 'package:not_clock/screens/app_icon_screen.dart';
+import 'package:not_clock/services/app_links_service.dart';
+import 'package:not_clock/config/app_config.dart';
+import 'package:not_clock/screens/about_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
   final AppSettings settings;
@@ -38,7 +41,7 @@ class SettingsScreen extends StatelessWidget {
                           subtitle:
                               '${settings.flavor.label} · ${settings.accent.label}',
                           trailing: _AccentDot(color: c.accent),
-                          onTap: () => Navigator.push(
+                          onTap: (_) => Navigator.push(
                             context,
                             _slideUp(ThemePickerScreen(settings: settings)),
                           ),
@@ -49,7 +52,7 @@ class SettingsScreen extends StatelessWidget {
                           icon: Icons.apps_rounded,
                           title: 'App icon',
                           subtitle: AppIconOption.byId(settings.appIconId).label,
-                          onTap: () => Navigator.push(
+                          onTap: (_) => Navigator.push(
                             context,
                             _slideUp(AppIconScreen(settings: settings)),
                           ),
@@ -95,28 +98,48 @@ class SettingsScreen extends StatelessWidget {
                           colors: c,
                           icon: Icons.mail_outline_rounded,
                           title: 'Send feedback',
-                          onTap: () => _todo(context, c, 'Send feedback'),
+                          onTap: (rowContext) =>
+                              _todo(rowContext, c, 'Send feedback'),
                         ),
                         _Divider(colors: c),
                         _NavRow(
                           colors: c,
                           icon: Icons.ios_share_rounded,
                           title: 'Share app',
-                          onTap: () => _todo(context, c, 'Share app'),
+                          subtitle: 'AirDrop, Messages, Mail, Copy Link',
+                          // rowContext, not the screen's — the iPad share
+                          // popover anchors to the row that was tapped.
+                          onTap: AppLinksService.shareApp,
                         ),
                         _Divider(colors: c),
                         _NavRow(
                           colors: c,
                           icon: Icons.star_outline_rounded,
                           title: 'Rate app',
-                          onTap: () => _todo(context, c, 'Rate app'),
+                          subtitle: AppConfig.isIOS
+                              ? 'Opens the App Store review page'
+                              : AppConfig.isAndroid
+                                  ? 'Opens the Play Store listing'
+                                  : 'Available in the mobile app',
+                          onTap: AppLinksService.rateApp,
+                        ),
+                        _Divider(colors: c),
+                        _NavRow(
+                          colors: c,
+                          icon: Icons.info_outline_rounded,
+                          title: 'About',
+                          subtitle: 'Version ${AppConfig.appVersion}',
+                          onTap: (_) => Navigator.push(
+                            context,
+                            _slideUp(AboutScreen(settings: settings)),
+                          ),
                         ),
                       ]),
 
                       const SizedBox(height: 24),
                       Center(
                         child: Text(
-                          'Not Clock 1.0.0',
+                          '${AppConfig.appName} ${AppConfig.appVersion}',
                           style: TextStyle(color: c.muted, fontSize: 12),
                         ),
                       ),
@@ -285,7 +308,10 @@ class _NavRow extends StatelessWidget {
   final String title;
   final String? subtitle;
   final Widget? trailing;
-  final VoidCallback onTap;
+
+  /// Receives the row's own BuildContext. Needed for anything that has to
+  /// anchor to the row itself, like the iPad share popover.
+  final void Function(BuildContext rowContext) onTap;
   final AppColors colors;
 
   const _NavRow({
@@ -300,7 +326,7 @@ class _NavRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      onTap: onTap,
+      onTap: () => onTap(context),
       splashColor: colors.accentWash(0.08),
       highlightColor: colors.accentWash(0.05),
       child: Padding(
