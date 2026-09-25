@@ -1,3 +1,4 @@
+import 'package:not_clock/config/sound_config.dart';
 class AlarmData {
   int hour; // 1-12
   int minute; // 0-59
@@ -18,7 +19,7 @@ class AlarmData {
     this.label = 'Alarm',
     this.enabled = true,
     List<int>? repeatDays,
-    this.sound = 'None',
+    this.sound = defaultAlarmSound,
     this.customSoundPath,
     this.snoozeEnabled = true,
     this.snoozeDurationMinutes = 9,

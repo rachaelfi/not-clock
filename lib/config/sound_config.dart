@@ -29,7 +29,7 @@ const List<String> timerSounds = [
 /// The default alarm sound filename.
 /// Set this for the default for new alarms.
 /// Use 'None' for no sound by default.
-const String defaultAlarmSound = 'forestbirds.mp3';
+const String defaultAlarmSound = 'birds.mp3';
  
 
 const String defaultTimerSound = 'digital-bell.mp3';

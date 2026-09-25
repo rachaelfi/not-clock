@@ -3,8 +3,11 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:not_clock/main.dart';
+import 'package:not_clock/models/alarm_data.dart';
 import 'package:not_clock/models/app_settings.dart';
 import 'package:not_clock/config/sunrise_presets.dart';
+import 'package:not_clock/services/alarm_scheduler.dart';
+import 'package:not_clock/services/audio_service.dart';
 import 'package:not_clock/services/brightness_service.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -23,8 +26,13 @@ import 'package:not_clock/services/brightness_service.dart';
 //  ramps the backlight from near-dark to full, hitting white as the alarm
 //  sounds.
 //
-//  Text and controls pick white or near-black by sampling the sky at their own
-//  vertical position, so they stay readable through all of it.
+//  This screen also opens for the sunrise alone, with the Night Clock setting
+//  off. Then [showStars] is false and the pending sky stays plain black —
+//  there's no starfield to look at, only the light that arrives at the end.
+//
+//  When the sleep alarm fires, this screen presents it in place, with Snooze
+//  and Dismiss. The scheduler is told to skip its own firing screen, which
+//  would otherwise cover the sky the whole night was building towards.
 // ─────────────────────────────────────────────────────────────────────────────
 
 enum SkyPhase { night, sunrise, day }
@@ -60,7 +68,7 @@ const _skyGradients = <SkyPhase, List<Color>>{
   ],
 };
 
-/// Sunrise-only mode's pending sky — plain and dark, no starfield.
+/// Sunrise-only mode's pending sky — plain and dark, no starfield to sit on.
 const _plainNightSky = <Color>[
   Color(0xFF05060F),
   Color(0xFF08090F),
@@ -98,11 +106,13 @@ class NightClockScreen extends StatefulWidget {
   /// Called when the user taps Stop. The sleep screen cancels the alarm here.
   final VoidCallback? onStop;
 
-  /// Called when the user picks a new time from the night clock itself.
+  /// Called when the user picks a new time from the night clock itself, or
+  /// snoozes.
   final ValueChanged<DateTime>? onAlarmChanged;
 
-  /// Whether to draw the star field while the alarm is pending. False when the Night Clock setting is off
-  /// and this screen exists only to run the sunrise — then the pending sky stays plain black.
+  /// Whether to draw the star field while the alarm is pending. False when the
+  /// Night Clock setting is off and this screen exists only to run the
+  /// sunrise.
   final bool showStars;
 
   const NightClockScreen({
@@ -127,11 +137,16 @@ class _NightClockScreenState extends State<NightClockScreen>
   Timer? _clockTimer;
   Timer? _dimTimer;
   Timer? _shootingScheduler;
+  Timer? _autoDismiss;
 
   DateTime _now = DateTime.now();
   DateTime? _alarmTime;
   bool _dimmed = false;
   bool _alarmFired = false;
+
+  /// Non-null while the alarm is actually sounding. Drives Snooze/Dismiss in
+  /// place of Stop.
+  AlarmData? _firingAlarm;
 
   final _rng = math.Random();
   late final List<_Star> _stars;
@@ -140,8 +155,8 @@ class _NightClockScreenState extends State<NightClockScreen>
 
   static const _dimAfter = Duration(seconds: 12);
 
-  // Where the clock block and the Stop button sit vertically, used to sample
-  // the sky for contrast.
+  // Where the clock block and the buttons sit vertically, used to sample the
+  // sky for contrast.
   static const _clockDepth = 0.34;
   static const _buttonDepth = 0.92;
 
@@ -155,8 +170,7 @@ class _NightClockScreenState extends State<NightClockScreen>
       SunrisePreset.byId(widget.settings.sunrisePresetId);
 
   /// How far through the wake-up window we are: 0 at the start, 1 at alarm
-  /// time. Null when the sunrise isn't running — switched off, no alarm set,
-  /// still outside the window, or the alarm has already fired.
+  /// time. Null when the sunrise isn't running.
   double? get _sunriseProgress {
     if (!widget.settings.sunriseEnabled) return null;
     if (_alarmTime == null || _alarmFired) return null;
@@ -174,11 +188,7 @@ class _NightClockScreenState extends State<NightClockScreen>
   bool get _sunriseActive => _sunriseProgress != null;
 
   /// The sky currently on screen, top to bottom.
-  ///
-  /// During the sunrise this is built from the preset: near-black at the top
-  /// early on, opening up to the full colour as the window progresses, so the
-  /// light grows from a glow at the horizon into the whole screen.
-    List<Color> get _skyStops {
+  List<Color> get _skyStops {
     final p = _sunriseProgress;
     if (p != null) {
       final glow = _preset.colorAt(p);
@@ -187,8 +197,7 @@ class _NightClockScreenState extends State<NightClockScreen>
       return [top, middle, glow];
     }
 
-    // Nothing to look at before the light starts, so don't borrow the
-    // starfield's sky when there's no starfield.
+    // Don't borrow the starfield's sky when there's no starfield.
     if (!widget.showStars && !_alarmFired) return _plainNightSky;
 
     return _skyGradients[_phase]!;
@@ -207,6 +216,10 @@ class _NightClockScreenState extends State<NightClockScreen>
     super.initState();
 
     _alarmTime = widget.alarmTime;
+
+    // Tell the scheduler to hand the sleep alarm over rather than pushing its
+    // own screen on top of ours.
+    AlarmScheduler.nightClockHandler = _onAlarmFired;
 
     // Fixed seed so the sky doesn't reshuffle on every rebuild.
     final seeded = math.Random(20260909);
@@ -241,9 +254,15 @@ class _NightClockScreenState extends State<NightClockScreen>
 
   @override
   void dispose() {
+    // Hand the alarm back before anything else, so a firing alarm doesn't end
+    // up with no screen to present it.
+    AlarmScheduler.nightClockHandler = null;
+    if (_firingAlarm != null) AudioService.stop();
+
     _clockTimer?.cancel();
     _dimTimer?.cancel();
     _shootingScheduler?.cancel();
+    _autoDismiss?.cancel();
     _twinkle.dispose();
     _shooting.dispose();
     _drift.dispose();
@@ -254,6 +273,72 @@ class _NightClockScreenState extends State<NightClockScreen>
     // WakelockPlus.disable();
     super.dispose();
   }
+
+  // ─── Alarm presentation ────────────────────────────────────────────────────
+
+  /// The scheduler is sounding the sleep alarm and has left the screen to us.
+  void _onAlarmFired(AlarmData alarm) {
+    if (!mounted) return;
+
+    setState(() {
+      _firingAlarm = alarm;
+      _alarmFired = true;
+      _dimmed = false;
+    });
+    _dimTimer?.cancel();
+    BrightnessService.restore();
+
+    // Matches AudioService's own three-minute cutoff, so the buttons don't
+    // sit there forever after the sound has given up.
+    _autoDismiss?.cancel();
+    _autoDismiss = Timer(const Duration(minutes: 3), () {
+      if (mounted && _firingAlarm != null) _dismissAlarm();
+    });
+  }
+
+    void _dismissAlarm() {
+    final alarm = _firingAlarm;
+    if (alarm == null) return;
+
+    _autoDismiss?.cancel();
+    AudioService.stop();
+    BrightnessService.restore();
+
+    // Clears the sleep alarm and calls onSleepAlarmDismissed, which flips the
+    // sleep screen's button back to "Set Sleep Alarm" — so there's no need to
+    // also call widget.onStop here.
+    AlarmScheduler.completeDismiss(alarm, isFromSleep: true);
+
+    _firingAlarm = null;
+    // You're up. Nothing left for this screen to show.
+    Navigator.of(context).pop();
+  }
+
+  void _snoozeAlarm() {
+    final alarm = _firingAlarm;
+    if (alarm == null) return;
+
+    _autoDismiss?.cancel();
+    AudioService.stop();
+    final next = AlarmScheduler.completeSnooze(
+      alarm,
+      alarm.snoozeDurationMinutes,
+      isFromSleep: true,
+    );
+
+    setState(() {
+      _firingAlarm = null;
+      _alarmTime = next;
+      // Back to pending: night sky again, and the sunrise re-runs if the
+      // snooze is longer than the wake-up window.
+      _alarmFired = false;
+    });
+
+    widget.onAlarmChanged?.call(next);
+    _restartDimTimer();
+  }
+
+  // ─── Loop ──────────────────────────────────────────────────────────────────
 
   void _tick() {
     if (!mounted) return;
@@ -307,7 +392,9 @@ class _NightClockScreenState extends State<NightClockScreen>
     final delay = Duration(milliseconds: 9000 + _rng.nextInt(13000));
     _shootingScheduler = Timer(delay, () {
       if (!mounted) return;
-      if (widget.showStars && _phase == SkyPhase.night && !_sunriseActive) {
+      if (widget.showStars &&
+          _phase == SkyPhase.night &&
+          !_sunriseActive) {
         setState(() => _shot = _ShootingStar.random(_rng));
         _shooting.forward(from: 0);
       }
@@ -357,7 +444,8 @@ class _NightClockScreenState extends State<NightClockScreen>
     final starOpacity = sunrise == null
         ? 1.0
         : (1.0 - sunrise * 2.2).clamp(0.0, 1.0);
-        final showStars = widget.showStars && phase == SkyPhase.night && starOpacity > 0;
+    final paintStars =
+        widget.showStars && phase == SkyPhase.night && starOpacity > 0;
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -392,7 +480,7 @@ class _NightClockScreenState extends State<NightClockScreen>
               ),
 
             // 3. Stars + shooting star.
-            if (showStars)
+            if (paintStars)
               AnimatedBuilder(
                 animation: Listenable.merge([_twinkle, _shooting]),
                 builder: (context, _) => Opacity(
@@ -424,7 +512,7 @@ class _NightClockScreenState extends State<NightClockScreen>
                 ),
               ),
 
-            // 5. Clock, alarm row, Stop button.
+            // 5. Clock, alarm row, and buttons.
             SafeArea(
               child: AnimatedOpacity(
                 opacity: _dimmed ? 0.0 : 1.0,
@@ -434,10 +522,13 @@ class _NightClockScreenState extends State<NightClockScreen>
                   use24Hour: widget.settings.use24HourFormat,
                   alarmTime: _alarmTime,
                   alarmFired: _alarmFired,
+                  firingAlarm: _firingAlarm,
                   clockInk: clockInk,
                   buttonInk: buttonInk,
                   onStop: _stop,
                   onEditAlarm: _editAlarm,
+                  onDismiss: _dismissAlarm,
+                  onSnooze: _snoozeAlarm,
                 ),
               ),
             ),
@@ -493,7 +584,8 @@ class _SunriseGlowPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width * 0.5, size.height * (1.02 - 0.18 * progress));
+    final center =
+        Offset(size.width * 0.5, size.height * (1.02 - 0.18 * progress));
     final radius = size.width * (0.35 + 0.95 * progress);
 
     canvas.drawCircle(
@@ -521,21 +613,29 @@ class _ClockFace extends StatelessWidget {
   final bool use24Hour;
   final DateTime? alarmTime;
   final bool alarmFired;
+  final AlarmData? firingAlarm;
   final Color clockInk;
   final Color buttonInk;
   final VoidCallback onStop;
   final VoidCallback onEditAlarm;
+  final VoidCallback onDismiss;
+  final VoidCallback onSnooze;
 
   const _ClockFace({
     required this.now,
     required this.use24Hour,
     required this.alarmTime,
     required this.alarmFired,
+    required this.firingAlarm,
     required this.clockInk,
     required this.buttonInk,
     required this.onStop,
     required this.onEditAlarm,
+    required this.onDismiss,
+    required this.onSnooze,
   });
+
+  bool get _isFiring => firingAlarm != null;
 
   @override
   Widget build(BuildContext context) {
@@ -621,27 +721,103 @@ class _ClockFace extends StatelessWidget {
         const Spacer(flex: 4),
 
         Padding(
-          padding: const EdgeInsets.only(bottom: 44),
-          child: GestureDetector(
-            onTap: onStop,
+          padding: const EdgeInsets.fromLTRB(32, 0, 32, 44),
+          child: _isFiring ? _firingButtons() : _stopButton(),
+        ),
+      ],
+    );
+  }
+
+  Widget _stopButton() {
+    return Center(
+      child: GestureDetector(
+        onTap: onStop,
+        behavior: HitTestBehavior.opaque,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 46, vertical: 14),
+          decoration: BoxDecoration(
+            color: buttonInk.withValues(alpha: 0.16),
+            borderRadius: BorderRadius.circular(30),
+            border: Border.all(
+                color: buttonInk.withValues(alpha: 0.45), width: 1.4),
+          ),
+          child: Text(
+            'Stop',
+            style: TextStyle(
+              color: buttonInk,
+              fontSize: 17,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.6,
+              shadows: _shadowFor(buttonInk),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Dismiss is solid so it's unmistakable at 6 AM; Snooze is the quieter
+  /// outline above it.
+  Widget _firingButtons() {
+    final onSolid =
+        buttonInk == Colors.white ? const Color(0xFF12212E) : Colors.white;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (firingAlarm!.snoozeEnabled) ...[
+          GestureDetector(
+            onTap: onSnooze,
             behavior: HitTestBehavior.opaque,
             child: Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 46, vertical: 14),
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 14),
               decoration: BoxDecoration(
-                color: buttonInk.withValues(alpha: 0.16),
-                borderRadius: BorderRadius.circular(30),
+                color: buttonInk.withValues(alpha: 0.14),
+                borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                    color: buttonInk.withValues(alpha: 0.45), width: 1.4),
+                    color: buttonInk.withValues(alpha: 0.4), width: 1.4),
               ),
+              child: Center(
+                child: Text(
+                  'Snooze ${firingAlarm!.snoozeDurationMinutes} min',
+                  style: TextStyle(
+                    color: buttonInk,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    shadows: _shadowFor(buttonInk),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+        ],
+        GestureDetector(
+          onTap: onDismiss,
+          behavior: HitTestBehavior.opaque,
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 18),
+            decoration: BoxDecoration(
+              color: buttonInk,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: buttonInk.withValues(alpha: 0.3),
+                  blurRadius: 18,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+            ),
+            child: Center(
               child: Text(
-                'Stop',
+                'Dismiss',
                 style: TextStyle(
-                  color: buttonInk,
-                  fontSize: 17,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.6,
-                  shadows: _shadowFor(buttonInk),
+                  color: onSolid,
+                  fontSize: 19,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.4,
                 ),
               ),
             ),
@@ -1159,6 +1335,9 @@ class _DaytimePainter extends CustomPainter {
 // ─── Entry point used by the sleep screen ────────────────────────────────────
 
 /// Opens the night clock full-screen. Returns when the user taps Stop.
+///
+/// Pass `showStars: false` when it's open only to run the sunrise — the Night
+/// Clock setting is off but the sunrise simulator is on.
 Future<void> openNightClock(
   BuildContext context, {
   DateTime? alarmTime,

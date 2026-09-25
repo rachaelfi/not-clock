@@ -7,7 +7,7 @@ import 'package:not_clock/theme/app_theme.dart';
 import 'package:not_clock/screens/alarm_sub/sound_picker.dart';
 import 'package:not_clock/screens/night_clock_screen.dart';
 import 'package:not_clock/services/alarm_scheduler.dart';
-
+import 'package:not_clock/config/sound_config.dart';
 class SleepScreen extends StatefulWidget {
   const SleepScreen({super.key});
 
@@ -24,7 +24,7 @@ class _SleepScreenState extends State<SleepScreen>
   bool _alarmIsSet = false;
 
   // Sound and flash settings for the sleep alarm
-  String _selectedSound = 'None';
+  String _selectedSound = defaultAlarmSound;
   bool _flashEnabled = false;
 
   late FixedExtentScrollController _hourController;

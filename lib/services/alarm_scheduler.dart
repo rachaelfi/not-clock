@@ -15,6 +15,8 @@ import 'package:not_clock/screens/alarm_firing_screen.dart';
 /// - 3-minute auto-dismiss still applies independently
 /// - One-time alarms are disabled after firing
 /// - Snooze creates a temporary alarm at current time + snooze duration
+/// - If the Night Clock is on screen it handles the sleep alarm itself, so the
+///   morning sky isn't hidden behind the firing screen
 class AlarmScheduler {
   // Navigator key for pushing firing screen from outside widget tree
   static GlobalKey<NavigatorState>? navigatorKey;
@@ -38,8 +40,17 @@ class AlarmScheduler {
   // Callback to notify sleep screen when its alarm is dismissed
   static VoidCallback? onSleepAlarmDismissed;
 
-    // True during the delay between auto-dismissing one alarm and firing the next
-  static bool _transitioning = false;
+  /// Set by the Night Clock while it's on screen.
+  ///
+  /// When the sleep alarm fires and this is non-null, the scheduler plays the
+  /// sound and hands the alarm over instead of pushing [AlarmFiringScreen].
+  /// Otherwise the firing screen would cover the sunrise or morning sky the
+  /// Night Clock just spent the night building up to — the user would only see
+  /// it after dismissing, which defeats the point.
+  ///
+  /// Regular (non-sleep) alarms still get the firing screen as usual, even
+  /// with the Night Clock open.
+  static void Function(AlarmData alarm)? nightClockHandler;
 
   /// Start the scheduler. Call once from main.dart.
   static void start(GlobalKey<NavigatorState> navKey) {
@@ -76,8 +87,6 @@ class AlarmScheduler {
     // Clear the "already fired" set when the minute changes
     if (currentMinute != _lastCheckedMinute) {
       _firedThisMinute.clear();
-          // Don't check during transition delay between alarms
-    if (_transitioning) return;
       _lastCheckedMinute = currentMinute;
     }
 
@@ -146,6 +155,20 @@ class AlarmScheduler {
     _firedThisMinute.add(key);
     _isFiring = true;
 
+    // ── Night Clock path ──
+    // It's already on screen showing the morning sky, so let it present the
+    // alarm rather than covering it.
+    if (isFromSleep && nightClockHandler != null) {
+      if (alarm.sound != 'None') {
+        AudioService.playAlarmSound(alarm.sound);
+      }
+      // A newer alarm taking over just needs the sound stopped — there's no
+      // route to pop, since nothing was pushed.
+      _currentDismissCallback = AudioService.stop;
+      nightClockHandler!(alarm);
+      return;
+    }
+
     // Store dismiss callback so a new alarm can auto-dismiss this one
     _currentDismissCallback = () {
       AudioService.stop();
@@ -163,49 +186,82 @@ class AlarmScheduler {
             AlarmFiringScreen(
           alarm: alarm,
           isFromSleep: isFromSleep,
-          onDismiss: () {
-            _isFiring = false;
-            _currentDismissCallback = null;
-            // Disable one-time alarms after firing
-            if (alarm.repeatDays.isEmpty && !isFromSleep) {
-              _disableAlarm(alarm);
-            }
-            // Clear sleep alarm after firing
-            if (isFromSleep) {
-              _sleepAlarm = null;
-              onSleepAlarmDismissed?.call();
-              onSleepAlarmDismissed = null;
-            }
-          },
-          onSnooze: (snoozeDuration) {
-            _isFiring = false;
-            _currentDismissCallback = null;
-            // Create a snooze alarm at current time + snooze duration
-            final snoozeTime =
-                DateTime.now().add(Duration(minutes: snoozeDuration));
-            final snoozeAlarm = alarm.copy();
-            int h = snoozeTime.hour;
-            snoozeAlarm.isAM = h < 12;
-            if (h == 0) h = 12;
-            if (h > 12) h -= 12;
-            snoozeAlarm.hour = h;
-            snoozeAlarm.minute = snoozeTime.minute;
-            snoozeAlarm.label = '${alarm.label} (Snooze)';
-            snoozeAlarm.repeatDays = [];
-            snoozeAlarm.enabled = true;
-
-            if (isFromSleep) {
-              _sleepAlarm = snoozeAlarm;
-            } else {
-              _saveSnoozeAlarm(snoozeAlarm);
-            }
-          },
+          onDismiss: () => completeDismiss(alarm, isFromSleep: isFromSleep),
+          onSnooze: (snoozeDuration) => completeSnooze(
+            alarm,
+            snoozeDuration,
+            isFromSleep: isFromSleep,
+          ),
         ),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           return FadeTransition(opacity: animation, child: child);
         },
         transitionDuration: const Duration(milliseconds: 300),
       ),
+    );
+  }
+
+  // ─── Outcomes ──────────────────────────────────────────────────────────────
+  //
+  // Public so the Night Clock can report the same outcomes the firing screen
+  // does. Neither of these touches the UI — the caller owns its own screen.
+
+  /// The alarm was dismissed. Disables one-time alarms, clears the sleep alarm.
+  static void completeDismiss(AlarmData alarm, {required bool isFromSleep}) {
+    _isFiring = false;
+    _currentDismissCallback = null;
+
+    // Disable one-time alarms after firing
+    if (alarm.repeatDays.isEmpty && !isFromSleep) {
+      _disableAlarm(alarm);
+    }
+
+    // Clear sleep alarm after firing
+    if (isFromSleep) {
+      _sleepAlarm = null;
+      onSleepAlarmDismissed?.call();
+      onSleepAlarmDismissed = null;
+    }
+  }
+
+  /// The alarm was snoozed. Re-arms it [minutes] from now.
+  ///
+  /// Returns the time it will next fire, which the Night Clock uses to reset
+  /// its countdown and run the sunrise again for the snooze window.
+  static DateTime completeSnooze(
+    AlarmData alarm,
+    int minutes, {
+    required bool isFromSleep,
+  }) {
+    _isFiring = false;
+    _currentDismissCallback = null;
+
+    // Create a snooze alarm at current time + snooze duration
+    final snoozeTime = DateTime.now().add(Duration(minutes: minutes));
+    final snoozeAlarm = alarm.copy();
+    int h = snoozeTime.hour;
+    snoozeAlarm.isAM = h < 12;
+    if (h == 0) h = 12;
+    if (h > 12) h -= 12;
+    snoozeAlarm.hour = h;
+    snoozeAlarm.minute = snoozeTime.minute;
+    snoozeAlarm.label = '${alarm.label} (Snooze)';
+    snoozeAlarm.repeatDays = [];
+    snoozeAlarm.enabled = true;
+
+    if (isFromSleep) {
+      _sleepAlarm = snoozeAlarm;
+    } else {
+      _saveSnoozeAlarm(snoozeAlarm);
+    }
+
+    // Seconds are dropped, matching how _shouldFire compares to the minute.
+    return DateTime(
+      snoozeTime.year,
+      snoozeTime.month,
+      snoozeTime.day,
+      snoozeTime.hour,
+      snoozeTime.minute,
     );
   }
 
