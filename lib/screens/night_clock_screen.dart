@@ -4,32 +4,33 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:not_clock/main.dart';
 import 'package:not_clock/models/app_settings.dart';
+import 'package:not_clock/config/sunrise_presets.dart';
+import 'package:not_clock/services/brightness_service.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  Night Clock
 //
-//  The sky follows the clock, not the alarm:
+//  While the alarm is pending the sky is always night, whatever the hour — you
+//  set a sleep alarm to go to sleep, so daylight would be wrong even at 2 PM.
+//
+//  Once the alarm fires, the sky becomes whatever the clock calls for:
 //    19:00 – 03:59  starry night
-//    04:00 – 05:59  sunrise
-//    06:00 – 18:59  blue sky
+//    04:00 – 07:59  sunrise
+//    08:00 – 18:59  blue sky
 //
-//  So an alarm at 5 AM wakes you to the sunrise sky, and one at 7 AM wakes you
-//  to daylight. "Good morning!" appears when the alarm time passes, whichever
-//  sky is showing.
+//  If the sunrise simulator is on, the last 5–30 minutes before the alarm
+//  override all of that: the screen walks through the chosen colour preset and
+//  ramps the backlight from near-dark to full, hitting white as the alarm
+//  sounds.
 //
-//  Text and controls pick white or near-black by sampling the sky gradient at
-//  their own vertical position, so the Stop button stays readable against the
-//  pale bottom of the daytime and sunrise skies.
-//
-//  The screen dims after 12 seconds of no touch. A tap anywhere brings it back.
-//  Tapping the alarm time opens a half-height picker. "Stop" cancels the sleep
-//  alarm and returns to the sleep screen.
+//  Text and controls pick white or near-black by sampling the sky at their own
+//  vertical position, so they stay readable through all of it.
 // ─────────────────────────────────────────────────────────────────────────────
 
 enum SkyPhase { night, sunrise, day }
 
 /// Which sky the clock time alone implies. Only consulted once the alarm has
-/// fired — before that the screen is always night. See [_NightClockScreenState._phase].
+/// fired — before that the screen is night, or the sunrise simulation.
 SkyPhase skyPhaseFor(DateTime t) {
   final h = t.hour;
   if (h >= 19 || h < 4) return SkyPhase.night; // 7 PM – 3:59 AM
@@ -59,9 +60,15 @@ const _skyGradients = <SkyPhase, List<Color>>{
   ],
 };
 
-/// The sky's color at vertical fraction [t] (0 = top, 1 = bottom).
-Color _skyColorAt(SkyPhase phase, double t) {
-  final stops = _skyGradients[phase]!;
+/// Sunrise-only mode's pending sky — plain and dark, no starfield.
+const _plainNightSky = <Color>[
+  Color(0xFF05060F),
+  Color(0xFF08090F),
+  Color(0xFF0B0C12),
+];
+
+/// The colour of [stops] at vertical fraction [t] (0 = top, 1 = bottom).
+Color _colorAtDepth(List<Color> stops, double t) {
   final scaled = t.clamp(0.0, 1.0) * (stops.length - 1);
   final i = scaled.floor().clamp(0, stops.length - 2);
   return Color.lerp(stops[i], stops[i + 1], scaled - i)!;
@@ -71,8 +78,7 @@ Color _skyColorAt(SkyPhase phase, double t) {
 Color _inkOn(Color sky) =>
     sky.computeLuminance() > 0.45 ? const Color(0xFF12212E) : Colors.white;
 
-/// A shadow that lifts [ink] off the sky behind it, in whichever direction
-/// gives contrast.
+/// A shadow that lifts [ink] off whatever is behind it.
 List<Shadow> _shadowFor(Color ink) => [
       Shadow(
         color: ink == Colors.white
@@ -95,12 +101,17 @@ class NightClockScreen extends StatefulWidget {
   /// Called when the user picks a new time from the night clock itself.
   final ValueChanged<DateTime>? onAlarmChanged;
 
+  /// Whether to draw the star field while the alarm is pending. False when the Night Clock setting is off
+  /// and this screen exists only to run the sunrise — then the pending sky stays plain black.
+  final bool showStars;
+
   const NightClockScreen({
     super.key,
     required this.settings,
     this.alarmTime,
     this.onStop,
     this.onAlarmChanged,
+    this.showStars = true,
   });
 
   @override
@@ -128,16 +139,68 @@ class _NightClockScreenState extends State<NightClockScreen>
   _ShootingStar? _shot;
 
   static const _dimAfter = Duration(seconds: 12);
-    /// Stars until the alarm goes off, whatever the hour — you set a sleep alarm
-  /// to go to sleep, so a bright blue sky would be wrong even at 2 PM. Once it
-  /// fires, the sky switches to whatever the actual time calls for: sunrise if
-  /// you're up at 5 AM, daylight at 9, stars again for a late-evening alarm.
-  SkyPhase get _phase => _alarmFired ? skyPhaseFor(_now) : SkyPhase.night;
 
   // Where the clock block and the Stop button sit vertically, used to sample
   // the sky for contrast.
   static const _clockDepth = 0.34;
   static const _buttonDepth = 0.92;
+
+  /// Stars until the alarm goes off, whatever the hour. Once it fires, the sky
+  /// switches to whatever the actual time calls for.
+  SkyPhase get _phase => _alarmFired ? skyPhaseFor(_now) : SkyPhase.night;
+
+  // ─── Sunrise simulation ────────────────────────────────────────────────────
+
+  SunrisePreset get _preset =>
+      SunrisePreset.byId(widget.settings.sunrisePresetId);
+
+  /// How far through the wake-up window we are: 0 at the start, 1 at alarm
+  /// time. Null when the sunrise isn't running — switched off, no alarm set,
+  /// still outside the window, or the alarm has already fired.
+  double? get _sunriseProgress {
+    if (!widget.settings.sunriseEnabled) return null;
+    if (_alarmTime == null || _alarmFired) return null;
+
+    final window =
+        Duration(minutes: widget.settings.sunriseWindowMinutes);
+    final start = _alarmTime!.subtract(window);
+    if (_now.isBefore(start)) return null;
+
+    final total = window.inMilliseconds;
+    if (total <= 0) return null;
+    return (_now.difference(start).inMilliseconds / total).clamp(0.0, 1.0);
+  }
+
+  bool get _sunriseActive => _sunriseProgress != null;
+
+  /// The sky currently on screen, top to bottom.
+  ///
+  /// During the sunrise this is built from the preset: near-black at the top
+  /// early on, opening up to the full colour as the window progresses, so the
+  /// light grows from a glow at the horizon into the whole screen.
+    List<Color> get _skyStops {
+    final p = _sunriseProgress;
+    if (p != null) {
+      final glow = _preset.colorAt(p);
+      final top = Color.lerp(Colors.black, glow, 0.12 + 0.88 * p)!;
+      final middle = Color.lerp(top, glow, 0.55)!;
+      return [top, middle, glow];
+    }
+
+    // Nothing to look at before the light starts, so don't borrow the
+    // starfield's sky when there's no starfield.
+    if (!widget.showStars && !_alarmFired) return _plainNightSky;
+
+    return _skyGradients[_phase]!;
+  }
+
+  /// Backlight level for the current point in the sunrise.
+  ///
+  /// Eased rather than linear: a straight ramp spends too long at a level
+  /// that's already bright enough to wake you early. easeInCubic keeps it dim
+  /// for most of the window and does the real work near the end.
+  double _brightnessFor(double progress) =>
+      0.02 + 0.98 * Curves.easeInCubic.transform(progress);
 
   @override
   void initState() {
@@ -184,6 +247,9 @@ class _NightClockScreenState extends State<NightClockScreen>
     _twinkle.dispose();
     _shooting.dispose();
     _drift.dispose();
+    // Always hand the backlight back, or the phone stays at whatever level
+    // the sunrise left it on.
+    BrightnessService.restore();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     // WakelockPlus.disable();
     super.dispose();
@@ -202,11 +268,22 @@ class _NightClockScreenState extends State<NightClockScreen>
         _dimTimer?.cancel();
       }
     });
+
+    // Drive the backlight. Writes below a 1% change are dropped inside the
+    // service, so most ticks cost nothing.
+    final p = _sunriseProgress;
+    if (p != null) {
+      if (_dimmed) setState(() => _dimmed = false);
+      BrightnessService.set(_brightnessFor(p));
+    } else if (_alarmFired) {
+      BrightnessService.restore();
+    }
   }
 
   void _restartDimTimer() {
     _dimTimer?.cancel();
-    if (_alarmFired) return;
+    // Never dim mid-sunrise — the whole point is the screen getting brighter.
+    if (_alarmFired || _sunriseActive) return;
     _dimTimer = Timer(_dimAfter, () {
       if (mounted) setState(() => _dimmed = true);
     });
@@ -220,16 +297,17 @@ class _NightClockScreenState extends State<NightClockScreen>
   /// Stop cancels the sleep alarm as well as closing the screen, so the user
   /// has to press Set Sleep Alarm again to bring the night clock back.
   void _stop() {
+    BrightnessService.restore();
     widget.onStop?.call();
     Navigator.of(context).pop();
   }
 
-  /// Fire a streak every 9–22 seconds, but only while the night sky is up.
+  /// Fire a streak every 9–22 seconds, but only under an actual night sky.
   void _scheduleShootingStar() {
     final delay = Duration(milliseconds: 9000 + _rng.nextInt(13000));
     _shootingScheduler = Timer(delay, () {
       if (!mounted) return;
-      if (_phase == SkyPhase.night) {
+      if (widget.showStars && _phase == SkyPhase.night && !_sunriseActive) {
         setState(() => _shot = _ShootingStar.random(_rng));
         _shooting.forward(from: 0);
       }
@@ -268,9 +346,18 @@ class _NightClockScreenState extends State<NightClockScreen>
   Widget build(BuildContext context) {
     final phase = _phase;
     final size = MediaQuery.sizeOf(context);
+    final sunrise = _sunriseProgress;
+    final stops = _skyStops;
 
-    final clockInk = _inkOn(_skyColorAt(phase, _clockDepth));
-    final buttonInk = _inkOn(_skyColorAt(phase, _buttonDepth));
+    final clockInk = _inkOn(_colorAtDepth(stops, _clockDepth));
+    final buttonInk = _inkOn(_colorAtDepth(stops, _buttonDepth));
+
+    // Stars linger into the first part of the sunrise, then fade as the light
+    // builds — the way real ones do.
+    final starOpacity = sunrise == null
+        ? 1.0
+        : (1.0 - sunrise * 2.2).clamp(0.0, 1.0);
+        final showStars = widget.showStars && phase == SkyPhase.night && starOpacity > 0;
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -281,36 +368,50 @@ class _NightClockScreenState extends State<NightClockScreen>
         child: Stack(
           fit: StackFit.expand,
           children: [
-            // 1. Sky gradient, cross-fading as the phase changes.
+            // 1. Sky. Cross-fades on phase change; follows the sunrise second
+            //    by second while that's running.
             AnimatedContainer(
-              duration: const Duration(milliseconds: 1200),
+              duration: Duration(milliseconds: sunrise == null ? 1200 : 900),
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  colors: _skyGradients[phase]!,
+                  colors: stops,
                 ),
               ),
             ),
 
-            // 2. Stars + shooting star (night only).
-            if (phase == SkyPhase.night)
+            // 2. Sunrise glow rising from the horizon.
+            if (sunrise != null)
+              CustomPaint(
+                size: size,
+                painter: _SunriseGlowPainter(
+                  progress: sunrise,
+                  color: _preset.colorAt(sunrise),
+                ),
+              ),
+
+            // 3. Stars + shooting star.
+            if (showStars)
               AnimatedBuilder(
                 animation: Listenable.merge([_twinkle, _shooting]),
-                builder: (context, _) => CustomPaint(
-                  size: size,
-                  painter: _StarPainter(
-                    stars: _stars,
-                    twinkle: _twinkle.value,
-                    shot: _shot,
-                    shotProgress:
-                        _shooting.isAnimating ? _shooting.value : null,
+                builder: (context, _) => Opacity(
+                  opacity: starOpacity,
+                  child: CustomPaint(
+                    size: size,
+                    painter: _StarPainter(
+                      stars: _stars,
+                      twinkle: _twinkle.value,
+                      shot: _shot,
+                      shotProgress:
+                          _shooting.isAnimating ? _shooting.value : null,
+                    ),
                   ),
                 ),
               ),
 
-            // 3. Sun (sunrise and day) + drifting clouds.
-            if (phase != SkyPhase.night)
+            // 4. Sun and drifting clouds, after the alarm on a daytime sky.
+            if (phase != SkyPhase.night && sunrise == null)
               AnimatedBuilder(
                 animation: _drift,
                 builder: (context, _) => CustomPaint(
@@ -323,7 +424,7 @@ class _NightClockScreenState extends State<NightClockScreen>
                 ),
               ),
 
-            // 4. Clock, alarm row, Stop button.
+            // 5. Clock, alarm row, Stop button.
             SafeArea(
               child: AnimatedOpacity(
                 opacity: _dimmed ? 0.0 : 1.0,
@@ -341,7 +442,7 @@ class _NightClockScreenState extends State<NightClockScreen>
               ),
             ),
 
-            // 5. Dimming veil. A sliver of sky stays visible so the phone
+            // 6. Dimming veil. A sliver of sky stays visible so the phone
             //    doesn't look switched off.
             IgnorePointer(
               child: AnimatedOpacity(
@@ -352,8 +453,8 @@ class _NightClockScreenState extends State<NightClockScreen>
               ),
             ),
 
-            // 6. A faint clock that survives the dim, like Sleepzy's. Always
-            //    white — the veil is black whatever the sky was.
+            // 7. A faint clock that survives the dim. Always white — the veil
+            //    is black whatever the sky was.
             if (_dimmed)
               IgnorePointer(
                 child: Center(
@@ -377,6 +478,40 @@ class _NightClockScreenState extends State<NightClockScreen>
       ),
     );
   }
+}
+
+// ─── Sunrise glow ────────────────────────────────────────────────────────────
+
+/// A soft pool of light at the bottom of the screen that grows through the
+/// wake-up window, so the sunrise reads as light arriving rather than the
+/// whole screen simply changing colour.
+class _SunriseGlowPainter extends CustomPainter {
+  final double progress;
+  final Color color;
+
+  _SunriseGlowPainter({required this.progress, required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width * 0.5, size.height * (1.02 - 0.18 * progress));
+    final radius = size.width * (0.35 + 0.95 * progress);
+
+    canvas.drawCircle(
+      center,
+      radius,
+      Paint()
+        ..shader = RadialGradient(
+          colors: [
+            color.withValues(alpha: 0.55 * (0.35 + 0.65 * progress)),
+            color.withValues(alpha: 0.0),
+          ],
+        ).createShader(Rect.fromCircle(center: center, radius: radius)),
+    );
+  }
+
+  @override
+  bool shouldRepaint(_SunriseGlowPainter old) =>
+      old.progress != progress || old.color != color;
 }
 
 // ─── Clock face ──────────────────────────────────────────────────────────────
@@ -519,8 +654,8 @@ class _ClockFace extends StatelessWidget {
 
 // ─── Half-height alarm picker ────────────────────────────────────────────────
 
-/// Bottom sheet covering the lower half of the screen, with Cancel and Done —
-/// the Sleepzy pattern. Minutes step by 5 to match the sleep screen's wheel.
+/// Bottom sheet covering the lower half of the screen, with Cancel and Done.
+/// Minutes step by 5 to match the sleep screen's wheel.
 class _AlarmTimeSheet extends StatefulWidget {
   final AppSettings settings;
   final DateTime initial;
@@ -536,7 +671,7 @@ class _AlarmTimeSheetState extends State<_AlarmTimeSheet> {
   late FixedExtentScrollController _minuteController;
   late FixedExtentScrollController _amPmController;
 
-  late int _hour; // 1–12
+  late int _hour; // 1–12, or 0–23 in 24-hour mode
   late int _minuteIndex; // 0–11, five minutes apart
   late bool _isAM;
 
@@ -1029,6 +1164,7 @@ Future<void> openNightClock(
   DateTime? alarmTime,
   VoidCallback? onStop,
   ValueChanged<DateTime>? onAlarmChanged,
+  bool showStars = true,
 }) {
   final settings = SettingsProvider.read(context);
   return Navigator.of(context).push(
@@ -1039,6 +1175,7 @@ Future<void> openNightClock(
         alarmTime: alarmTime,
         onStop: onStop,
         onAlarmChanged: onAlarmChanged,
+        showStars: showStars,
       ),
       transitionsBuilder: (_, animation, __, child) =>
           FadeTransition(opacity: animation, child: child),

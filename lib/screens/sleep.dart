@@ -220,13 +220,17 @@ class _SleepScreenState extends State<SleepScreen>
     if (_alarmIsSet) {
       _registerSleepAlarm();
 
-      // Night Clock takes over the screen for the night, if enabled.
-      if (SettingsProvider.read(context).nightClockEnabled) {
+            // Take over the screen if either feature needs it: the Night Clock for
+      // the whole night, or the sunrise, which needs a visible screen to
+      // brighten.
+      final s = SettingsProvider.read(context);
+      if (s.nightClockEnabled || s.sunriseEnabled) {
         openNightClock(
           context,
           alarmTime: _nextAlarmDateTime,
           onStop: _onNightClockStop,
           onAlarmChanged: _onNightClockAlarmChanged,
+          showStars: s.nightClockEnabled,
         );
       }
     } else {

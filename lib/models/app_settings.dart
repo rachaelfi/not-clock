@@ -15,6 +15,10 @@ class AppSettings extends ChangeNotifier {
   // Sleep
   bool _nightClockEnabled = false;
 
+  bool _sunriseEnabled = false;
+  String _sunrisePresetId = 'classic_fire';
+  int _sunriseWindowMinutes = 15;
+
   // ─── 24-hour format ─────────────────────────────────────────────────────────
 
   bool get use24HourFormat => _use24HourFormat;
@@ -91,12 +95,45 @@ class AppSettings extends ChangeNotifier {
     }
   }
 
+  bool get sunriseEnabled => _sunriseEnabled;
+
+  set sunriseEnabled(bool value) {
+    if (_sunriseEnabled != value) {
+      _sunriseEnabled = value;
+      notifyListeners();
+      StorageService.saveSunriseEnabled(value);
+    }
+  }
+
+  String get sunrisePresetId => _sunrisePresetId;
+
+  set sunrisePresetId(String value) {
+    if (_sunrisePresetId != value) {
+      _sunrisePresetId = value;
+      notifyListeners();
+      StorageService.saveSunrisePreset(value);
+    }
+  }
+
+  int get sunriseWindowMinutes => _sunriseWindowMinutes;
+
+  set sunriseWindowMinutes(int value) {
+    if (_sunriseWindowMinutes != value) {
+      _sunriseWindowMinutes = value;
+      notifyListeners();
+      StorageService.saveSunriseWindow(value);
+    }
+  }
+
   // ─── Loading ────────────────────────────────────────────────────────────────
 
   /// Load saved settings from disk. Call this once at app startup.
   Future<void> loadFromDisk() async {
     _use24HourFormat = await StorageService.load24HourFormat();
     _nightClockEnabled = await StorageService.loadNightClockEnabled();
+    _sunriseEnabled = await StorageService.loadSunriseEnabled();
+    _sunrisePresetId = await StorageService.loadSunrisePreset();
+    _sunriseWindowMinutes = await StorageService.loadSunriseWindow();
     _appIconId = await StorageService.loadAppIcon();
 
     final flavorName = await StorageService.loadThemeFlavor();

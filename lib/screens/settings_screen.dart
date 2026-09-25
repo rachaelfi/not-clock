@@ -6,6 +6,8 @@ import 'package:not_clock/screens/app_icon_screen.dart';
 import 'package:not_clock/services/app_links_service.dart';
 import 'package:not_clock/config/app_config.dart';
 import 'package:not_clock/screens/about_screen.dart';
+import 'package:not_clock/screens/sunrise_settings.dart';
+import 'package:not_clock/config/sunrise_presets.dart';
 
 class SettingsScreen extends StatelessWidget {
   final AppSettings settings;
@@ -83,6 +85,32 @@ class SettingsScreen extends StatelessWidget {
                           value: settings.nightClockEnabled,
                           onChanged: (v) => settings.nightClockEnabled = v,
                         ),
+                                                _Divider(colors: c),
+                        _ToggleRow(
+                          colors: c,
+                          icon: Icons.wb_twilight_rounded,
+                          title: 'Sunrise simulator',
+                          subtitle: 'Brighten the screen gradually before '
+                              'the alarm sounds',
+                          value: settings.sunriseEnabled,
+                          onChanged: (v) => settings.sunriseEnabled = v,
+                        ),
+                        if (settings.sunriseEnabled) ...[
+                          _Divider(colors: c),
+                          _NavRow(
+                            colors: c,
+                            icon: Icons.gradient_rounded,
+                            title: 'Sunrise settings',
+                            subtitle:
+                                '${settings.sunriseWindowMinutes} min  ·  '
+                                '${SunrisePreset.byId(settings.sunrisePresetId).name}',
+                            onTap: (_) => Navigator.push(
+                              context,
+                              _slideUp(
+                                  SunriseSettingsScreen(settings: settings)),
+                            ),
+                          ),
+                        ],
                       ]),
                       const SizedBox(height: 10),
                       _Note(

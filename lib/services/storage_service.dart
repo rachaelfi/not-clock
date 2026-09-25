@@ -22,6 +22,9 @@ class StorageService {
 
   // Sleep
   static const String _keyNightClock = 'settings_night_clock';
+  static const String _keySunriseEnabled = 'settings_sunrise_enabled';
+  static const String _keySunrisePreset = 'settings_sunrise_preset';
+  static const String _keySunriseWindow = 'settings_sunrise_window';
 
   // ─── Settings ───────────────────────────────────────────────────────────────
 
@@ -87,6 +90,36 @@ class StorageService {
   static Future<bool> loadNightClockEnabled() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool(_keyNightClock) ?? false;
+  }
+
+  static Future<void> saveSunriseEnabled(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_keySunriseEnabled, value);
+  }
+
+  static Future<bool> loadSunriseEnabled() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_keySunriseEnabled) ?? false;
+  }
+
+  static Future<void> saveSunrisePreset(String id) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keySunrisePreset, id);
+  }
+
+  static Future<String> loadSunrisePreset() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_keySunrisePreset) ?? 'classic_fire';
+  }
+
+  static Future<void> saveSunriseWindow(int minutes) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_keySunriseWindow, minutes);
+  }
+
+  static Future<int> loadSunriseWindow() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt(_keySunriseWindow) ?? 15;
   }
 
   // ─── Alarms ─────────────────────────────────────────────────────────────────
