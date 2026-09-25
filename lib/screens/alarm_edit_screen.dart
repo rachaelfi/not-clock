@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:not_clock/l10n/app_localizations.dart';
 import 'package:not_clock/main.dart';
 import 'package:not_clock/models/alarm_data.dart';
 import 'package:not_clock/theme/app_theme.dart';
@@ -57,26 +58,27 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
 
   void _delete() {
     final c = SettingsProvider.read(context).colors;
+    final t = AppLocalizations.of(context);
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: c.card,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text('Delete Alarm',
+        title: Text(t.deleteAlarm,
             style: TextStyle(color: c.text, fontSize: 18)),
-        content: Text('Are you sure you want to delete this alarm?',
+        content: Text(t.deleteAlarmConfirm,
             style: TextStyle(color: c.subtext, fontSize: 14)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: Text('Cancel', style: TextStyle(color: c.accentSoft)),
+            child: Text(t.cancel, style: TextStyle(color: c.accentSoft)),
           ),
           TextButton(
             onPressed: () {
               Navigator.pop(ctx);
               Navigator.pop(context, 'delete');
             },
-            child: Text('Delete', style: TextStyle(color: c.danger)),
+            child: Text(t.delete, style: TextStyle(color: c.danger)),
           ),
         ],
       ),
@@ -106,6 +108,7 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
   Widget build(BuildContext context) {
     final settings = SettingsProvider.of(context);
     final c = settings.colors;
+    final t = AppLocalizations.of(context);
     final is24h = settings.use24HourFormat;
 
     return Scaffold(
@@ -121,16 +124,25 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
                 children: [
                   GestureDetector(
                     onTap: _cancel,
-                    child: Text('Cancel',
+                    child: Text(t.cancel,
                         style: TextStyle(color: c.accentSoft,
                             fontSize: 17, fontWeight: FontWeight.w400)),
                   ),
-                  Text(widget.isNew ? 'Add Alarm' : 'Edit Alarm',
-                      style: TextStyle(color: c.text,
-                          fontSize: 17, fontWeight: FontWeight.w600)),
+                  // Flexible so the longer German and Dutch titles don't
+                  // shove Cancel and Save off the edges.
+                  Flexible(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      child: Text(widget.isNew ? t.addAlarm : t.editAlarm,
+                          textAlign: TextAlign.center,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(color: c.text,
+                              fontSize: 17, fontWeight: FontWeight.w600)),
+                    ),
+                  ),
                   GestureDetector(
                     onTap: _save,
-                    child: Text('Save',
+                    child: Text(t.save,
                         style: TextStyle(color: c.accent,
                             fontSize: 17, fontWeight: FontWeight.w600)),
                   ),
@@ -212,19 +224,21 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
                       ),
                       child: Column(
                         children: [
-                          // Repeat
-                          SettingsRow(label: 'Repeat', value: _alarm.daysString,
+                          // Repeat. NOTE: daysString is still built inside
+                          // AlarmData and stays English — see the note at the
+                          // bottom of alarms.dart.
+                          SettingsRow(label: t.repeat, value: _alarm.daysString,
                               onTap: () => _openRepeatPicker()),
                           _divider(c),
                           // Label
-                          SettingsRow(label: 'Label', value: _alarm.label,
+                          SettingsRow(label: t.labelField, value: _alarm.label,
                               onTap: () => _openLabelEditor()),
                           _divider(c),
                           // Sound — shows display name from filename
                           SettingsRow(
-                            label: 'Sound',
+                            label: t.sound,
                             value: _alarm.sound == 'None'
-                                ? 'None'
+                                ? t.none
                                 : soundDisplayName(_alarm.sound),
                             onTap: () => _openSoundPicker(),
                           ),
@@ -240,15 +254,18 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Text('Flash Alarm',
+                                      Text(t.flashAlarm,
                                           style: TextStyle(
                                               color: c.text, fontSize: 16)),
-                                      Text('Flash screen when alarm fires',
+                                      Text(t.flashAlarmSubtitle,
                                           style: TextStyle(
-                                              color: c.subtext, fontSize: 11)),
+                                              color: c.subtext,
+                                              fontSize: 11,
+                                              height: 1.3)),
                                     ],
                                   ),
                                 ),
+                                const SizedBox(width: 8),
                                 // Colors come from ThemeData.switchTheme
                                 Switch(
                                   value: _alarm.flashEnabled,
@@ -267,9 +284,11 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Text('Snooze',
-                                    style: TextStyle(
-                                        color: c.text, fontSize: 16)),
+                                Expanded(
+                                  child: Text(t.snooze,
+                                      style: TextStyle(
+                                          color: c.text, fontSize: 16)),
+                                ),
                                 Switch(
                                   value: _alarm.snoozeEnabled,
                                   onChanged: (val) {
@@ -282,8 +301,9 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
                           if (_alarm.snoozeEnabled) ...[
                             _divider(c),
                             SettingsRow(
-                              label: 'Snooze Duration',
-                              value: '${_alarm.snoozeDurationMinutes} min',
+                              label: t.snoozeDuration,
+                              value:
+                                  t.minutesShort(_alarm.snoozeDurationMinutes),
                               onTap: () => _openSnoozeDurationPicker(),
                             ),
                           ],
@@ -305,7 +325,7 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
                             borderRadius: BorderRadius.circular(16),
                           ),
                           child: Center(
-                            child: Text('Delete Alarm',
+                            child: Text(t.deleteAlarm,
                                 style: TextStyle(color: c.danger,
                                     fontSize: 17, fontWeight: FontWeight.w500)),
                           ),
@@ -415,6 +435,8 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
       childDelegate: ListWheelChildBuilderDelegate(
         builder: (context, index) {
           if (index < 0 || index > 1) return null;
+          // Picker labels beside digits — the short Latin forms are what
+          // people expect in every language here.
           final label = index == 0 ? 'AM' : 'PM';
           final sel = (index == 0) == _alarm.isAM;
           return Center(
@@ -452,20 +474,22 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
 
   void _openLabelEditor() async {
     final c = SettingsProvider.read(context).colors;
+    final t = AppLocalizations.of(context);
     final controller = TextEditingController(text: _alarm.label);
     final result = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: c.card,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text('Label', style: TextStyle(color: c.text, fontSize: 18)),
+        title: Text(t.labelField,
+            style: TextStyle(color: c.text, fontSize: 18)),
         content: TextField(
           controller: controller,
           autofocus: true,
           style: TextStyle(color: c.text),
           cursorColor: c.accent,
           decoration: InputDecoration(
-            hintText: 'Alarm',
+            hintText: t.alarmDefaultLabel,
             hintStyle: TextStyle(color: c.muted),
             enabledBorder: UnderlineInputBorder(
               borderSide: BorderSide(color: c.accentWash(0.3)),
@@ -477,9 +501,9 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx),
-              child: Text('Cancel', style: TextStyle(color: c.subtext))),
+              child: Text(t.cancel, style: TextStyle(color: c.subtext))),
           TextButton(onPressed: () => Navigator.pop(ctx, controller.text),
-              child: Text('Done', style: TextStyle(color: c.accent))),
+              child: Text(t.done, style: TextStyle(color: c.accent))),
         ],
       ),
     );
@@ -501,47 +525,68 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
     if (result != null) setState(() => _alarm.sound = result);
   }
 
-  void _openSnoozeDurationPicker() {
+    void _openSnoozeDurationPicker() {
     final c = SettingsProvider.read(context).colors;
+    final t = AppLocalizations.of(context);
     final options = [1, 2, 3, 5, 9, 10, 15, 20, 30];
     showModalBottomSheet(
       context: context,
       backgroundColor: c.surface,
+      // Nine rows plus the header don't fit the default sheet height on a
+      // short window — the Column had nowhere to put the overflow. Letting it
+      // scroll inside a capped box fixes it at any height.
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (ctx) {
         return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 16),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(ctx).size.height * 0.7,
+            ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Container(width: 36, height: 4,
-                    decoration: BoxDecoration(color: c.muted,
+                const SizedBox(height: 16),
+                Container(
+                    width: 36,
+                    height: 4,
+                    decoration: BoxDecoration(
+                        color: c.muted,
                         borderRadius: BorderRadius.circular(2))),
                 const SizedBox(height: 16),
-                Text('Snooze Duration',
-                    style: TextStyle(color: c.text, fontSize: 17,
+                Text(t.snoozeDuration,
+                    style: TextStyle(
+                        color: c.text,
+                        fontSize: 17,
                         fontWeight: FontWeight.w600)),
                 const SizedBox(height: 12),
-                ...options.map((mins) {
-                  final isSelected = mins == _alarm.snoozeDurationMinutes;
-                  return ListTile(
-                    title: Text('$mins minutes',
-                        style: TextStyle(
-                          color: isSelected ? c.accentSoft : c.text,
-                          fontSize: 16,
-                        )),
-                    trailing: isSelected
-                        ? Icon(Icons.check, color: c.accent, size: 20)
-                        : null,
-                    onTap: () {
-                      setState(() => _alarm.snoozeDurationMinutes = mins);
-                      Navigator.pop(ctx);
-                    },
-                  );
-                }),
+                Flexible(
+                  child: ListView(
+                    shrinkWrap: true,
+                    children: options.map((mins) {
+                      final isSelected =
+                          mins == _alarm.snoozeDurationMinutes;
+                      return ListTile(
+                        title: Text(t.minutesLong(mins),
+                            style: TextStyle(
+                              color: isSelected ? c.accentSoft : c.text,
+                              fontSize: 16,
+                            )),
+                        trailing: isSelected
+                            ? Icon(Icons.check, color: c.accent, size: 20)
+                            : null,
+                        onTap: () {
+                          setState(
+                              () => _alarm.snoozeDurationMinutes = mins);
+                          Navigator.pop(ctx);
+                        },
+                      );
+                    }).toList(),
+                  ),
+                ),
+                const SizedBox(height: 8),
               ],
             ),
           ),
@@ -571,13 +616,28 @@ class SettingsRow extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(label, style: TextStyle(color: c.text, fontSize: 16)),
-            Row(
-              children: [
-                Text(value, style: TextStyle(color: c.subtext, fontSize: 16)),
-                const SizedBox(width: 6),
-                Icon(Icons.chevron_right, color: c.muted, size: 20),
-              ],
+            // Both sides flex: "Schlummerdauer" on the left and a long day
+            // string on the right would otherwise overflow together.
+            Flexible(
+              child: Text(label,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: c.text, fontSize: 16)),
+            ),
+            const SizedBox(width: 12),
+            Flexible(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Flexible(
+                    child: Text(value,
+                        textAlign: TextAlign.end,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(color: c.subtext, fontSize: 16)),
+                  ),
+                  const SizedBox(width: 6),
+                  Icon(Icons.chevron_right, color: c.muted, size: 20),
+                ],
+              ),
             ),
           ],
         ),

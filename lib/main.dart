@@ -8,6 +8,8 @@ import 'package:not_clock/screens/stopwatch.dart';
 import 'package:not_clock/screens/timers.dart';
 import 'package:not_clock/screens/settings_screen.dart';
 import 'package:not_clock/services/alarm_scheduler.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:not_clock/l10n/app_localizations.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -60,6 +62,9 @@ class _AlarmAppState extends State<AlarmApp> {
             // The navigator key lets AlarmScheduler push the firing screen
             navigatorKey: navigatorKey,
             theme: AppPalette.materialTheme(_settings.colors),
+            locale: _settings.locale,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
             home: const MainScreen(),
           );
         },

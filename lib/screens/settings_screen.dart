@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:not_clock/l10n/app_localizations.dart';
+import 'package:not_clock/config/app_config.dart';
+import 'package:not_clock/config/sunrise_presets.dart';
 import 'package:not_clock/models/app_settings.dart';
 import 'package:not_clock/theme/app_theme.dart';
 import 'package:not_clock/screens/theme_picker_screen.dart';
 import 'package:not_clock/screens/app_icon_screen.dart';
-import 'package:not_clock/services/app_links_service.dart';
-import 'package:not_clock/config/app_config.dart';
+import 'package:not_clock/screens/sunrise_settings_screen.dart';
 import 'package:not_clock/screens/about_screen.dart';
-import 'package:not_clock/screens/sunrise_settings.dart';
-import 'package:not_clock/config/sunrise_presets.dart';
+import 'package:not_clock/screens/language_screen.dart';
+import 'package:not_clock/services/app_links_service.dart';
 
 class SettingsScreen extends StatelessWidget {
   final AppSettings settings;
@@ -22,6 +24,7 @@ class SettingsScreen extends StatelessWidget {
       listenable: settings,
       builder: (context, _) {
         final c = settings.colors;
+        final t = AppLocalizations.of(context);
 
         return Scaffold(
           backgroundColor: c.background,
@@ -29,17 +32,19 @@ class SettingsScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _Header(colors: c),
+                _Header(colors: c, title: t.settingsTitle),
                 Expanded(
                   child: ListView(
                     padding: const EdgeInsets.fromLTRB(20, 8, 20, 40),
                     children: [
-                      _SectionLabel('Personalization', colors: c),
+                      _SectionLabel(t.sectionPersonalization, colors: c),
                       _Card(colors: c, children: [
                         _NavRow(
                           colors: c,
                           icon: Icons.palette_outlined,
-                          title: 'Theme and colors',
+                          title: t.themeAndColors,
+                          // Flavour and accent names stay untranslated —
+                          // Catppuccin's palette names are proper nouns.
                           subtitle:
                               '${settings.flavor.label} · ${settings.accent.label}',
                           trailing: _AccentDot(color: c.accent),
@@ -52,7 +57,7 @@ class SettingsScreen extends StatelessWidget {
                         _NavRow(
                           colors: c,
                           icon: Icons.apps_rounded,
-                          title: 'App icon',
+                          title: t.appIcon,
                           subtitle: AppIconOption.byId(settings.appIconId).label,
                           onTap: (_) => Navigator.push(
                             context,
@@ -63,35 +68,32 @@ class SettingsScreen extends StatelessWidget {
                         _ToggleRow(
                           colors: c,
                           icon: Icons.schedule_rounded,
-                          title: '24-hour time',
+                          title: t.twentyFourHourTime,
                           subtitle: settings.use24HourFormat
-                              ? 'Clocks and pickers show 00–23'
-                              : 'Clocks and pickers show AM and PM',
+                              ? t.twentyFourHourOn
+                              : t.twentyFourHourOff,
                           value: settings.use24HourFormat,
                           onChanged: (v) => settings.use24HourFormat = v,
                         ),
                       ]),
 
                       const SizedBox(height: 28),
-                      _SectionLabel('Sleep', colors: c),
+                      _SectionLabel(t.sectionSleep, colors: c),
                       _Card(colors: c, children: [
                         _ToggleRow(
                           colors: c,
                           icon: Icons.nightlight_round,
-                          title: 'Night Clock',
-                          subtitle:
-                              'Show a dimming clock with a night sky after you '
-                              'set a sleep alarm',
+                          title: t.nightClock,
+                          subtitle: t.nightClockSubtitle,
                           value: settings.nightClockEnabled,
                           onChanged: (v) => settings.nightClockEnabled = v,
                         ),
-                                                _Divider(colors: c),
+                        _Divider(colors: c),
                         _ToggleRow(
                           colors: c,
                           icon: Icons.wb_twilight_rounded,
-                          title: 'Sunrise simulator',
-                          subtitle: 'Brighten the screen gradually before '
-                              'the alarm sounds',
+                          title: t.sunriseSimulator,
+                          subtitle: t.sunriseSimulatorSubtitle,
                           value: settings.sunriseEnabled,
                           onChanged: (v) => settings.sunriseEnabled = v,
                         ),
@@ -100,10 +102,11 @@ class SettingsScreen extends StatelessWidget {
                           _NavRow(
                             colors: c,
                             icon: Icons.gradient_rounded,
-                            title: 'Sunrise settings',
-                            subtitle:
-                                '${settings.sunriseWindowMinutes} min  ·  '
-                                '${SunrisePreset.byId(settings.sunrisePresetId).name}',
+                            title: t.sunriseSettings,
+                            subtitle: t.sunriseSummary(
+                              settings.sunriseWindowMinutes,
+                              SunrisePreset.byId(settings.sunrisePresetId).name,
+                            ),
                             onTap: (_) => Navigator.push(
                               context,
                               _slideUp(
@@ -113,29 +116,35 @@ class SettingsScreen extends StatelessWidget {
                         ],
                       ]),
                       const SizedBox(height: 10),
-                      _Note(
-                        colors: c,
-                        text: 'A starry sky while you sleep. When the alarm '
-                            'goes off it becomes sunrise, daylight, or stars '
-                            'depending on the time.',
-                      ),
+                      _Note(colors: c, text: t.nightClockNote),
 
                       const SizedBox(height: 28),
-                      _SectionLabel('General', colors: c),
+                      _SectionLabel(t.sectionGeneral, colors: c),
                       _Card(colors: c, children: [
                         _NavRow(
                           colors: c,
+                          icon: Icons.translate_rounded,
+                          title: t.language,
+                          subtitle: _languageLabel(settings, t),
+                          onTap: (_) => Navigator.push(
+                            context,
+                            _slideUp(LanguageScreen(settings: settings)),
+                          ),
+                        ),
+                        _Divider(colors: c),
+                        _NavRow(
+                          colors: c,
                           icon: Icons.mail_outline_rounded,
-                          title: 'Send feedback',
-                          subtitle: 'Opens your mail app',
+                          title: t.sendFeedback,
+                          subtitle: t.sendFeedbackSubtitle,
                           onTap: AppLinksService.sendFeedback,
                         ),
                         _Divider(colors: c),
                         _NavRow(
                           colors: c,
                           icon: Icons.ios_share_rounded,
-                          title: 'Share app',
-                          subtitle: 'AirDrop, Messages, Mail, Copy Link',
+                          title: t.shareApp,
+                          subtitle: t.shareAppSubtitle,
                           // rowContext, not the screen's — the iPad share
                           // popover anchors to the row that was tapped.
                           onTap: AppLinksService.shareApp,
@@ -144,20 +153,20 @@ class SettingsScreen extends StatelessWidget {
                         _NavRow(
                           colors: c,
                           icon: Icons.star_outline_rounded,
-                          title: 'Rate app',
+                          title: t.rateApp,
                           subtitle: AppConfig.isIOS
-                              ? 'Opens the App Store review page'
+                              ? t.rateAppSubtitleIos
                               : AppConfig.isAndroid
-                                  ? 'Opens the Play Store listing'
-                                  : 'Available in the mobile app',
+                                  ? t.rateAppSubtitleAndroid
+                                  : t.rateAppSubtitleOther,
                           onTap: AppLinksService.rateApp,
                         ),
                         _Divider(colors: c),
                         _NavRow(
                           colors: c,
                           icon: Icons.info_outline_rounded,
-                          title: 'About',
-                          subtitle: 'Version ${AppConfig.appVersion}',
+                          title: t.about,
+                          subtitle: t.versionShort(AppConfig.appVersion),
                           onTap: (_) => Navigator.push(
                             context,
                             _slideUp(AboutScreen(settings: settings)),
@@ -168,7 +177,7 @@ class SettingsScreen extends StatelessWidget {
                       const SizedBox(height: 24),
                       Center(
                         child: Text(
-                          '${AppConfig.appName} ${AppConfig.appVersion}',
+                          t.appFooter(AppConfig.appName, AppConfig.appVersion),
                           style: TextStyle(color: c.muted, fontSize: 12),
                         ),
                       ),
@@ -183,6 +192,17 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
+  /// Language names are shown in their own language, never translated.
+  String _languageLabel(AppSettings s, AppLocalizations t) {
+    switch (s.languageCode) {
+      case 'en':
+        return 'English';
+      case 'es':
+        return 'Español';
+      default:
+        return t.languageSystem;
+    }
+  }
 }
 
 // ─── Route transition shared by the sub-screens ──────────────────────────────
@@ -199,11 +219,16 @@ Route<T> _slideUp<T>(Widget page) {
   );
 }
 
+// `openSettingsScreen` and `SettingsGearButton` deliberately stay in main.dart,
+// where your other screens already import them from. Defining them here too
+// would make those imports ambiguous.
+
 // ─── Shared building blocks (also used by the picker screens) ────────────────
 
 class _Header extends StatelessWidget {
   final AppColors colors;
-  const _Header({required this.colors});
+  final String title;
+  const _Header({required this.colors, required this.title});
 
   @override
   Widget build(BuildContext context) {
@@ -213,13 +238,15 @@ class _Header extends StatelessWidget {
         children: [
           BackChip(colors: colors),
           const SizedBox(width: 16),
-          Text(
-            'Settings',
-            style: TextStyle(
-              color: colors.text,
-              fontSize: 32,
-              fontWeight: FontWeight.w700,
-              letterSpacing: -0.5,
+          Expanded(
+            child: Text(
+              title,
+              style: TextStyle(
+                color: colors.text,
+                fontSize: 32,
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.5,
+              ),
             ),
           ),
         ],
@@ -456,7 +483,3 @@ class _AccentDot extends StatelessWidget {
         decoration: BoxDecoration(color: color, shape: BoxShape.circle),
       );
 }
-
-// `openSettingsScreen` and `SettingsGearButton` deliberately stay in main.dart,
-// where your other screens already import them from. Defining them here too
-// would make those imports ambiguous.

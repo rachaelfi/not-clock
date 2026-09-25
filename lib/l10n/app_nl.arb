@@ -1,0 +1,212 @@
+{
+  "@@locale": "nl",
+
+  "settingsTitle": "Instellingen",
+  "sectionPersonalization": "Personalisatie",
+  "sectionSleep": "Slaap",
+  "sectionGeneral": "Algemeen",
+
+  "themeAndColors": "Thema en kleuren",
+  "appIcon": "App-icoon",
+
+  "twentyFourHourTime": "24-uursnotatie",
+  "twentyFourHourOn": "Klokken tonen 00–23",
+  "twentyFourHourOff": "Klokken tonen AM en PM",
+
+  "nightClock": "Nachtklok",
+  "nightClockSubtitle": "Toont een dimmende klok met een nachtelijke hemel nadat je een slaapwekker instelt",
+  "nightClockNote": "Een sterrenhemel terwijl je slaapt. Als de wekker afgaat wordt het zonsopgang, daglicht of sterren, afhankelijk van de tijd.",
+
+  "sunriseSimulator": "Zonsopgangsimulator",
+  "sunriseSimulatorSubtitle": "Maakt het scherm geleidelijk lichter voordat de wekker afgaat",
+  "sunriseSettings": "Zonsopganginstellingen",
+  "sunriseSummary": "{minutes} min  ·  {preset}",
+  "@sunriseSummary": {
+    "placeholders": {
+      "minutes": { "type": "int" },
+      "preset": { "type": "String" }
+    }
+  },
+
+  "language": "Taal",
+  "languageTitle": "Taal",
+  "languageSystem": "Systeemstandaard",
+  "languageSystemSubtitle": "Volgt de instellingen van je apparaat",
+
+  "sendFeedback": "Feedback sturen",
+  "sendFeedbackSubtitle": "Opent je mail-app",
+  "shareApp": "App delen",
+  "shareAppSubtitle": "AirDrop, Berichten, Mail, Link kopiëren",
+  "rateApp": "App beoordelen",
+  "rateAppSubtitleIos": "Opent de beoordelingspagina in de App Store",
+  "rateAppSubtitleAndroid": "Opent de Play Store-pagina",
+  "rateAppSubtitleOther": "Beschikbaar in de mobiele app",
+
+  "about": "Over",
+  "aboutTitle": "Over",
+  "versionShort": "Versie {version}",
+  "@versionShort": {
+    "placeholders": { "version": { "type": "String" } }
+  },
+  "versionFull": "Versie {version} ({build})",
+  "@versionFull": {
+    "placeholders": {
+      "version": { "type": "String" },
+      "build": { "type": "String" }
+    }
+  },
+  "appFooter": "{name} {version}",
+  "@appFooter": {
+    "placeholders": {
+      "name": { "type": "String" },
+      "version": { "type": "String" }
+    }
+  },
+
+  "tagline": "Wekkers, slaap en een hemel om bij weg te dromen.",
+  "appDescription": "Not Clock brengt je wekkers, wereldklokken, stopwatch en timers samen op één rustige plek. Stel een slaapwekker in en de Nachtklok dimt naar een sterrenhemel, om je daarna te begroeten met zonsopgang of daglicht als het tijd is om op te staan.",
+
+  "sectionLinks": "Links",
+  "website": "Website",
+  "privacyPolicy": "Privacybeleid",
+  "termsOfUse": "Gebruiksvoorwaarden",
+
+  "sectionCredits": "Met dank aan",
+  "sectionSounds": "Geluiden",
+
+  "sectionLegal": "Juridisch",
+  "openSourceLicenses": "Opensourcelicenties",
+  "openSourceLicensesSubtitle": "Bibliotheken waarmee deze app is gemaakt",
+
+  "madeWithFlutter": "Gemaakt met Flutter",
+
+  "notWiredUp": "{feature} werkt nog niet.",
+  "@notWiredUp": {
+    "placeholders": { "feature": { "type": "String" } }
+  },
+
+  "worldClockTitle": "Wereldklok",
+  "myLocation": "MIJN LOCATIE",
+  "dst": "ZOMERTIJD",
+  "addCityHint": "Tik op + om een stad toe te voegen",
+  "daytime": "Dag",
+  "nighttime": "Nacht",
+  "edit": "Wijzig",
+  "done": "Gereed",
+
+  "alarmsTitle": "Wekkers",
+  "noAlarms": "Geen wekkers",
+  "alarmDefaultLabel": "Wekker",
+  "alarmIn": "Wekker over {time}",
+  "@alarmIn": {
+    "placeholders": { "time": { "type": "String" } }
+  },
+
+  "sleepTitle": "Slaap",
+  "sleepDurationLabel": "slaapduur",
+  "sleepDurationValue": "~ {hours} u {minutes} min",
+  "@sleepDurationValue": {
+    "placeholders": {
+      "hours": { "type": "int" },
+      "minutes": { "type": "String" }
+    }
+  },
+  "noSound": "Geen geluid",
+  "flash": "Flits",
+  "quickSleep": "Snelle slaap",
+  "setSleepAlarm": "Slaapwekker instellen",
+  "cancelAlarm": "Wekker annuleren",
+
+  "stopwatchTitle": "Stopwatch",
+  "lapsHeader": "RONDES",
+  "lapLabel": "Ronde {number}",
+  "@lapLabel": {
+    "placeholders": { "number": { "type": "int" } }
+  },
+  "currentLap": "Ronde {number}  {time}",
+  "@currentLap": {
+    "placeholders": {
+      "number": { "type": "int" },
+      "time": { "type": "String" }
+    }
+  },
+  "bestLap": "BESTE",
+  "worstLap": "SLECHTSTE",
+  "start": "Start",
+  "stop": "Stop",
+  "resume": "Hervat",
+  "reset": "Herstel",
+  "lap": "Ronde",
+
+  "timersTitle": "Timers",
+  "recents": "RECENT",
+  "quickTimers": "Snelle timers",
+  "startTimer": "Timer starten",
+  "addTimer": "Timer toevoegen",
+  "cancel": "Annuleer",
+  "timerDone": "KLAAR",
+  "restart": "Opnieuw",
+  "pause": "Pauze",
+  "addAlarm": "Wekker toevoegen",
+  "editAlarm": "Wekker wijzigen",
+  "save": "Bewaar",
+  "repeat": "Herhalen",
+  "labelField": "Naam",
+  "sound": "Geluid",
+  "none": "Geen",
+  "flashAlarm": "Flitswekker",
+  "flashAlarmSubtitle": "Laat het scherm knipperen als de wekker afgaat",
+  "flashActive": "Flits actief",
+  "snooze": "Sluimer",
+  "snoozeDuration": "Sluimerduur",
+  "snoozeFor": "Sluimer {minutes} min",
+  "@snoozeFor": {
+    "placeholders": { "minutes": { "type": "int" } }
+  },
+  "minutesShort": "{minutes} min",
+  "@minutesShort": {
+    "placeholders": { "minutes": { "type": "int" } }
+  },
+  "minutesLong": "{minutes} minuten",
+  "@minutesLong": {
+    "placeholders": { "minutes": { "type": "int" } }
+  },
+  "deleteAlarm": "Wekker verwijderen",
+  "deleteAlarmConfirm": "Weet je zeker dat je deze wekker wilt verwijderen?",
+  "delete": "Verwijder",
+  "dismiss": "Stoppen",
+  "goodMorning": "Goedemorgen!",
+  "setAlarm": "Wekker instellen",
+  "wakeUpAt": "Wakker worden om",
+  "fromNow": "over {hours} u {minutes} min",
+  "@fromNow": {
+    "placeholders": {
+      "hours": { "type": "int" },
+      "minutes": { "type": "String" }
+    }
+  },
+  "timerSound": "Timergeluid",
+  "repeatEvery": "Herhalen elke",
+  "reset": "Herstel",
+  "sectionBackground": "Achtergrond",
+  "sectionAccent": "Accent",
+  "accentHint": "Gebruikt voor knoppen, koppen en alles wat paars was.",
+  "savedAsYouGo": "Wordt meteen bewaard, bevestigen hoeft niet.",
+  "sunriseTitle": "Zonsopgang",
+  "wakeUpWindow": "Wekvenster",
+  "wakeUpWindowHint": "Hoelang voor de wekker het licht begint op te bouwen.",
+  "beforeAlarm": "{minutes} minuten voor je wekker",
+  "@beforeAlarm": {
+    "placeholders": { "minutes": { "type": "int" } }
+  },
+  "sectionColors": "Kleuren",
+  "sunriseFooterNote": "Het scherm wordt geleidelijk lichter via deze kleuren en is helemaal wit als de wekker afgaat. Leg je telefoon met het scherm omhoog, goed zichtbaar.",
+  "mySounds": "MIJN GELUIDEN",
+  "alarmSounds": "WEKKERGELUIDEN",
+  "timerSounds": "TIMERGELUIDEN",
+  "uploadCustomSound": "Eigen geluid uploaden",
+  "addCustomSound": "Eigen geluid toevoegen",
+  "add": "Voeg toe",
+  "soundNamePlaceholder": "Naam van geluid (voorlopig)",
+  "noSoundsYet": "Nog geen geluiden"
+}

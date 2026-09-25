@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:not_clock/config/sound_config.dart';
 
 /// StorageService handles all persistent data using shared_preferences.
 ///
@@ -14,7 +15,7 @@ class StorageService {
   static const String _keyAlarms = 'alarms_list';
   static const String _keyWorldClocks = 'world_clocks_list';
   static const String _keyRecentTimers = 'recent_timers_list';
-
+  static const String _keyTimerSound = 'settings_timer_sound';
   // Personalization
   static const String _keyThemeFlavor = 'settings_theme_flavor';
   static const String _keyThemeAccent = 'settings_theme_accent';
@@ -25,6 +26,8 @@ class StorageService {
   static const String _keySunriseEnabled = 'settings_sunrise_enabled';
   static const String _keySunrisePreset = 'settings_sunrise_preset';
   static const String _keySunriseWindow = 'settings_sunrise_window';
+
+  static const String _keyLanguage = 'settings_language';
 
   // ─── Settings ───────────────────────────────────────────────────────────────
 
@@ -38,6 +41,17 @@ class StorageService {
   static Future<bool> load24HourFormat() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool(_keyUse24Hour) ?? false;
+  }
+
+  /// Empty string means follow the device language.
+  static Future<void> saveLanguage(String code) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyLanguage, code);
+  }
+
+  static Future<String> loadLanguage() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_keyLanguage) ?? '';
   }
 
   // ─── Personalization ────────────────────────────────────────────────────────
@@ -183,5 +197,15 @@ class StorageService {
 
     final List<dynamic> decoded = jsonDecode(jsonString);
     return decoded.cast<int>();
+  }
+
+    static Future<void> saveTimerSound(String filename) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyTimerSound, filename);
+  }
+
+  static Future<String> loadTimerSound() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_keyTimerSound) ?? defaultTimerSound;
   }
 }

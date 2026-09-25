@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:not_clock/l10n/app_localizations.dart';
 import 'package:not_clock/config/app_config.dart';
 import 'package:not_clock/config/credits.dart';
 import 'package:not_clock/models/app_settings.dart';
@@ -11,9 +12,6 @@ class AboutScreen extends StatelessWidget {
   final AppSettings settings;
 
   const AboutScreen({super.key, required this.settings});
-
-  String get _versionLabel =>
-      'Version ${AppConfig.appVersion} (${AppConfig.buildNumber})';
 
   /// "© 2026 Name" this year, "© 2026–2027 Name" from next year on.
   String get _copyright {
@@ -32,7 +30,10 @@ class AboutScreen extends StatelessWidget {
       listenable: settings,
       builder: (context, _) {
         final c = settings.colors;
+        final t = AppLocalizations.of(context);
         final icon = AppIconOption.byId(settings.appIconId);
+        final versionLabel =
+            t.versionFull(AppConfig.appVersion, AppConfig.buildNumber);
 
         return Scaffold(
           backgroundColor: c.background,
@@ -46,7 +47,7 @@ class AboutScreen extends StatelessWidget {
                     children: [
                       BackChip(colors: c),
                       const SizedBox(width: 16),
-                      Text('About',
+                      Text(t.aboutTitle,
                           style: TextStyle(
                             color: c.text,
                             fontSize: 26,
@@ -81,7 +82,7 @@ class AboutScreen extends StatelessWidget {
                             color: c.accentWash(0.14),
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          child: Text(_versionLabel,
+                          child: Text(versionLabel,
                               style: TextStyle(
                                 color: c.accentSoft,
                                 fontSize: 12,
@@ -91,7 +92,7 @@ class AboutScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 12),
                       Center(
-                        child: Text(AppConfig.tagline,
+                        child: Text(t.tagline,
                             textAlign: TextAlign.center,
                             style: TextStyle(color: c.subtext, fontSize: 14)),
                       ),
@@ -103,7 +104,7 @@ class AboutScreen extends StatelessWidget {
                           color: c.card,
                           borderRadius: BorderRadius.circular(16),
                         ),
-                        child: Text(AppConfig.description,
+                        child: Text(t.appDescription,
                             style: TextStyle(
                               color: c.text,
                               fontSize: 14.5,
@@ -113,42 +114,42 @@ class AboutScreen extends StatelessWidget {
 
                       // ── Links ──
                       const SizedBox(height: 28),
-                      _SectionLabel('Links', colors: c),
+                      _SectionLabel(t.sectionLinks, colors: c),
                       _Card(colors: c, children: [
                         _LinkRow(
                           colors: c,
                           icon: Icons.language_rounded,
-                          title: 'Website',
+                          title: t.website,
                           external: true,
                           onTap: () => AppLinksService.openUrl(
                               context, AppConfig.websiteUrl,
-                              label: 'website'),
+                              label: t.website.toLowerCase()),
                         ),
                         _Divider(colors: c),
                         _LinkRow(
                           colors: c,
                           icon: Icons.privacy_tip_outlined,
-                          title: 'Privacy Policy',
+                          title: t.privacyPolicy,
                           external: true,
                           onTap: () => AppLinksService.openUrl(
                               context, AppConfig.privacyPolicyUrl,
-                              label: 'privacy policy'),
+                              label: t.privacyPolicy.toLowerCase()),
                         ),
                         _Divider(colors: c),
                         _LinkRow(
                           colors: c,
                           icon: Icons.description_outlined,
-                          title: 'Terms of Use',
+                          title: t.termsOfUse,
                           external: true,
                           onTap: () => AppLinksService.openUrl(
                               context, AppConfig.termsUrl,
-                              label: 'terms of use'),
+                              label: t.termsOfUse.toLowerCase()),
                         ),
                       ]),
 
                       // ── Credits ──
                       const SizedBox(height: 28),
-                      _SectionLabel('Credits', colors: c),
+                      _SectionLabel(t.sectionCredits, colors: c),
                       _Card(colors: c, children: [
                         for (var i = 0; i < designCredits.length; i++) ...[
                           if (i > 0) _Divider(colors: c),
@@ -162,7 +163,7 @@ class AboutScreen extends StatelessWidget {
                       // Appears automatically once soundCredits has entries.
                       if (soundCredits.isNotEmpty) ...[
                         const SizedBox(height: 28),
-                        _SectionLabel('Sounds', colors: c),
+                        _SectionLabel(t.sectionSounds, colors: c),
                         _Card(colors: c, children: [
                           for (var i = 0; i < soundCredits.length; i++) ...[
                             if (i > 0) _Divider(colors: c),
@@ -176,17 +177,17 @@ class AboutScreen extends StatelessWidget {
 
                       // ── Legal ──
                       const SizedBox(height: 28),
-                      _SectionLabel('Legal', colors: c),
+                      _SectionLabel(t.sectionLegal, colors: c),
                       _Card(colors: c, children: [
                         _LinkRow(
                           colors: c,
                           icon: Icons.article_outlined,
-                          title: 'Open-source licenses',
-                          subtitle: 'Libraries this app is built with',
+                          title: t.openSourceLicenses,
+                          subtitle: t.openSourceLicensesSubtitle,
                           onTap: () => showLicensePage(
                             context: context,
                             applicationName: AppConfig.appName,
-                            applicationVersion: _versionLabel,
+                            applicationVersion: versionLabel,
                             applicationLegalese: _copyright,
                             applicationIcon: Padding(
                               padding: const EdgeInsets.all(12),
@@ -204,7 +205,7 @@ class AboutScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       Center(
-                        child: Text('Made with Flutter',
+                        child: Text(t.madeWithFlutter,
                             style: TextStyle(color: c.muted, fontSize: 12)),
                       ),
                     ],

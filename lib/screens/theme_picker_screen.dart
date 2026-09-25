@@ -1,10 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:not_clock/l10n/app_localizations.dart';
 import 'package:not_clock/models/app_settings.dart';
 import 'package:not_clock/theme/app_theme.dart';
 import 'package:not_clock/screens/settings_screen.dart' show BackChip;
 
 /// Picking a flavor or accent writes it straight to [AppSettings], so the
 /// preview, the screen behind it, and the saved value all move together.
+///
+/// Catppuccin's flavor names and blurbs, and the accent color names, stay in
+/// English on purpose — they're the palette's own proper nouns, and a Spanish
+/// or German speaker looking up "Macchiato" or "Mauve" online should find the
+/// same words they saw here.
 class ThemePickerScreen extends StatelessWidget {
   final AppSettings settings;
 
@@ -16,6 +22,7 @@ class ThemePickerScreen extends StatelessWidget {
       listenable: settings,
       builder: (context, _) {
         final c = settings.colors;
+        final t = AppLocalizations.of(context);
 
         return Scaffold(
           backgroundColor: c.background,
@@ -31,7 +38,7 @@ class ThemePickerScreen extends StatelessWidget {
                       const SizedBox(width: 16),
                       Expanded(
                         child: Text(
-                          'Theme and colors',
+                          t.themeAndColors,
                           style: TextStyle(
                             color: c.text,
                             fontSize: 26,
@@ -45,7 +52,7 @@ class ThemePickerScreen extends StatelessWidget {
                         style: TextButton.styleFrom(
                             foregroundColor: c.accentSoft,
                             padding: const EdgeInsets.symmetric(horizontal: 8)),
-                        child: const Text('Reset'),
+                        child: Text(t.reset),
                       ),
                     ],
                   ),
@@ -56,7 +63,7 @@ class ThemePickerScreen extends StatelessWidget {
                     children: [
                       _Preview(colors: c),
                       const SizedBox(height: 28),
-                      _Label('Background', colors: c),
+                      _Label(t.sectionBackground, colors: c),
                       const SizedBox(height: 12),
                       ...ThemeFlavor.values.map((f) => Padding(
                             padding: const EdgeInsets.only(bottom: 10),
@@ -69,11 +76,12 @@ class ThemePickerScreen extends StatelessWidget {
                             ),
                           )),
                       const SizedBox(height: 22),
-                      _Label('Accent', colors: c),
+                      _Label(t.sectionAccent, colors: c),
                       const SizedBox(height: 4),
                       Text(
-                        'Used for buttons, headers, and anything currently purple.',
-                        style: TextStyle(color: c.muted, fontSize: 12.5, height: 1.4),
+                        t.accentHint,
+                        style: TextStyle(
+                            color: c.muted, fontSize: 12.5, height: 1.4),
                       ),
                       const SizedBox(height: 14),
                       _AccentGrid(
@@ -84,7 +92,7 @@ class ThemePickerScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 18),
                       Text(
-                        'Saved as you go — no need to confirm.',
+                        t.savedAsYouGo,
                         style: TextStyle(color: c.muted, fontSize: 12),
                       ),
                     ],
@@ -127,6 +135,8 @@ class _Preview extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = colors;
+    final t = AppLocalizations.of(context);
+
     return AnimatedContainer(
       duration: const Duration(milliseconds: 220),
       curve: Curves.easeOut,
@@ -141,12 +151,14 @@ class _Preview extends StatelessWidget {
         children: [
           Row(
             children: [
-              Text('Sleep',
-                  style: TextStyle(
-                      color: c.text,
-                      fontSize: 20,
-                      fontWeight: FontWeight.w700)),
-              const Spacer(),
+              Expanded(
+                child: Text(t.sleepTitle,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        color: c.text,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700)),
+              ),
               Container(
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
@@ -159,7 +171,8 @@ class _Preview extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 14),
-          Text('Sleep duration ~ 7 h 45 min',
+          Text('${t.sleepDurationLabel} ${t.sleepDurationValue(7, '45')}',
+              overflow: TextOverflow.ellipsis,
               style: TextStyle(color: c.subtext, fontSize: 12.5)),
           const SizedBox(height: 6),
           Text('6:30',
@@ -172,7 +185,8 @@ class _Preview extends StatelessWidget {
               )),
           const SizedBox(height: 16),
           Container(
-            padding: const EdgeInsets.symmetric(vertical: 13),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
             decoration: BoxDecoration(
               gradient: c.accentGradient,
               borderRadius: BorderRadius.circular(14),
@@ -183,11 +197,15 @@ class _Preview extends StatelessWidget {
               children: [
                 Icon(Icons.alarm_add, color: c.onAccent, size: 18),
                 const SizedBox(width: 8),
-                Text('Set Sleep Alarm',
-                    style: TextStyle(
-                        color: c.onAccent,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600)),
+                Flexible(
+                  child: Text(t.setSleepAlarm,
+                      textAlign: TextAlign.center,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          color: c.onAccent,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600)),
+                ),
               ],
             ),
           ),
@@ -202,9 +220,12 @@ class _Preview extends StatelessWidget {
               children: [
                 Icon(Icons.nightlight_round, color: c.accentSoft, size: 17),
                 const SizedBox(width: 10),
-                Text('Night Clock',
-                    style: TextStyle(color: c.text, fontSize: 14)),
-                const Spacer(),
+                Expanded(
+                  child: Text(t.nightClock,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(color: c.text, fontSize: 14)),
+                ),
+                const SizedBox(width: 8),
                 Container(
                   width: 38,
                   height: 22,
@@ -289,6 +310,7 @@ class _FlavorTile extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Palette names stay in English — see the class doc.
                   Text(flavor.label,
                       style: TextStyle(
                           color: colors.text,
@@ -296,12 +318,15 @@ class _FlavorTile extends StatelessWidget {
                           fontWeight: FontWeight.w600)),
                   const SizedBox(height: 2),
                   Text(flavor.blurb,
-                      style: TextStyle(color: colors.subtext, fontSize: 12.5)),
+                      style: TextStyle(
+                          color: colors.subtext, fontSize: 12.5, height: 1.3)),
                 ],
               ),
             ),
-            if (selected)
+            if (selected) ...[
+              const SizedBox(width: 8),
               Icon(Icons.check_circle_rounded, color: colors.accent, size: 22),
+            ],
           ],
         ),
       ),
@@ -371,6 +396,7 @@ class _AccentGrid extends StatelessWidget {
           }).toList(),
         ),
         const SizedBox(height: 12),
+        // Accent color name stays in English — see the class doc.
         Text(selected.label,
             style: TextStyle(
                 color: colors.text,

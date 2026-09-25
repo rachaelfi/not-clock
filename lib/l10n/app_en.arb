@@ -1,0 +1,214 @@
+{
+  "@@locale": "en",
+
+  "settingsTitle": "Settings",
+  "sectionPersonalization": "Personalization",
+  "sectionSleep": "Sleep",
+  "sectionGeneral": "General",
+
+  "themeAndColors": "Theme and colors",
+  "appIcon": "App icon",
+
+  "twentyFourHourTime": "24-hour time",
+  "twentyFourHourOn": "Clocks and pickers show 00–23",
+  "twentyFourHourOff": "Clocks and pickers show AM and PM",
+
+  "nightClock": "Night Clock",
+  "nightClockSubtitle": "Show a dimming clock with a night sky after you set a sleep alarm",
+  "nightClockNote": "A starry sky while you sleep. When the alarm goes off it becomes sunrise, daylight, or stars depending on the time.",
+
+  "sunriseSimulator": "Sunrise simulator",
+  "sunriseSimulatorSubtitle": "Brighten the screen gradually before the alarm sounds",
+  "sunriseSettings": "Sunrise settings",
+  "sunriseSummary": "{minutes} min  ·  {preset}",
+  "@sunriseSummary": {
+    "description": "Wake-up window length and chosen colour preset",
+    "placeholders": {
+      "minutes": { "type": "int" },
+      "preset": { "type": "String" }
+    }
+  },
+
+  "language": "Language",
+  "languageTitle": "Language",
+  "languageSystem": "System default",
+  "languageSystemSubtitle": "Follow your device settings",
+
+  "sendFeedback": "Send feedback",
+  "sendFeedbackSubtitle": "Opens your mail app",
+  "shareApp": "Share app",
+  "shareAppSubtitle": "AirDrop, Messages, Mail, Copy Link",
+  "rateApp": "Rate app",
+  "rateAppSubtitleIos": "Opens the App Store review page",
+  "rateAppSubtitleAndroid": "Opens the Play Store listing",
+  "rateAppSubtitleOther": "Available in the mobile app",
+
+  "about": "About",
+  "aboutTitle": "About",
+  "versionShort": "Version {version}",
+  "@versionShort": {
+    "placeholders": { "version": { "type": "String" } }
+  },
+  "versionFull": "Version {version} ({build})",
+  "@versionFull": {
+    "placeholders": {
+      "version": { "type": "String" },
+      "build": { "type": "String" }
+    }
+  },
+  "appFooter": "{name} {version}",
+  "@appFooter": {
+    "placeholders": {
+      "name": { "type": "String" },
+      "version": { "type": "String" }
+    }
+  },
+
+  "tagline": "Alarms, sleep, and a sky to fall asleep to.",
+  "appDescription": "Not Clock brings your alarms, world clocks, stopwatch, and timers together in one calm place. Set a sleep alarm and the Night Clock dims to a starry sky, then greets you with sunrise or daylight when it's time to get up.",
+
+  "sectionLinks": "Links",
+  "website": "Website",
+  "privacyPolicy": "Privacy Policy",
+  "termsOfUse": "Terms of Use",
+
+  "sectionCredits": "Credits",
+  "sectionSounds": "Sounds",
+
+  "sectionLegal": "Legal",
+  "openSourceLicenses": "Open-source licenses",
+  "openSourceLicensesSubtitle": "Libraries this app is built with",
+
+  "madeWithFlutter": "Made with Flutter",
+
+  "notWiredUp": "{feature} is not wired up yet.",
+  "@notWiredUp": {
+    "placeholders": { "feature": { "type": "String" } }
+  },
+
+  "worldClockTitle": "World Clock",
+  "myLocation": "MY LOCATION",
+  "dst": "DST",
+  "addCityHint": "Tap + to add a city",
+  "daytime": "Day",
+  "nighttime": "Night",
+  "edit": "Edit",
+  "done": "Done",
+
+  "alarmsTitle": "Alarms",
+  "noAlarms": "No alarms",
+  "alarmDefaultLabel": "Alarm",
+  "alarmIn": "Alarm in {time}",
+  "@alarmIn": {
+    "description": "Snackbar after enabling an alarm",
+    "placeholders": { "time": { "type": "String" } }
+  },
+
+  "sleepTitle": "Sleep",
+  "sleepDurationLabel": "sleep duration",
+  "sleepDurationValue": "~ {hours} h {minutes} min",
+  "@sleepDurationValue": {
+    "placeholders": {
+      "hours": { "type": "int" },
+      "minutes": { "type": "String" }
+    }
+  },
+  "noSound": "No sound",
+  "flash": "Flash",
+  "quickSleep": "Quick sleep",
+  "setSleepAlarm": "Set Sleep Alarm",
+  "cancelAlarm": "Cancel Alarm",
+
+  "stopwatchTitle": "Stopwatch",
+  "lapsHeader": "LAPS",
+  "lapLabel": "Lap {number}",
+  "@lapLabel": {
+    "placeholders": { "number": { "type": "int" } }
+  },
+  "currentLap": "Lap {number}  {time}",
+  "@currentLap": {
+    "placeholders": {
+      "number": { "type": "int" },
+      "time": { "type": "String" }
+    }
+  },
+  "bestLap": "BEST",
+  "worstLap": "WORST",
+  "start": "Start",
+  "stop": "Stop",
+  "resume": "Resume",
+  "reset": "Reset",
+  "lap": "Lap",
+
+  "timersTitle": "Timers",
+  "recents": "RECENTS",
+  "quickTimers": "Quick timers",
+  "startTimer": "Start Timer",
+  "addTimer": "Add Timer",
+  "cancel": "Cancel",
+  "timerDone": "DONE",
+  "restart": "Restart",
+  "pause": "Pause",
+  "addAlarm": "Add Alarm",
+  "editAlarm": "Edit Alarm",
+  "save": "Save",
+  "repeat": "Repeat",
+  "labelField": "Label",
+  "sound": "Sound",
+  "none": "None",
+  "flashAlarm": "Flash Alarm",
+  "flashAlarmSubtitle": "Flash screen when alarm fires",
+  "flashActive": "Flash active",
+  "snooze": "Snooze",
+  "snoozeDuration": "Snooze Duration",
+  "snoozeFor": "Snooze {minutes} min",
+  "@snoozeFor": {
+    "placeholders": { "minutes": { "type": "int" } }
+  },
+  "minutesShort": "{minutes} min",
+  "@minutesShort": {
+    "placeholders": { "minutes": { "type": "int" } }
+  },
+  "minutesLong": "{minutes} minutes",
+  "@minutesLong": {
+    "placeholders": { "minutes": { "type": "int" } }
+  },
+  "deleteAlarm": "Delete Alarm",
+  "deleteAlarmConfirm": "Are you sure you want to delete this alarm?",
+  "delete": "Delete",
+  "dismiss": "Dismiss",
+  "goodMorning": "Good morning!",
+  "setAlarm": "Set alarm",
+  "wakeUpAt": "Wake up at",
+  "fromNow": "{hours} h {minutes} min from now",
+  "@fromNow": {
+    "placeholders": {
+      "hours": { "type": "int" },
+      "minutes": { "type": "String" }
+    }
+  },
+  "timerSound": "Timer sound",
+  "repeatEvery": "Repeat every",
+  "reset": "Reset",
+  "sectionBackground": "Background",
+  "sectionAccent": "Accent",
+  "accentHint": "Used for buttons, headers, and anything that was purple.",
+  "savedAsYouGo": "Saved as you go — no need to confirm.",
+  "sunriseTitle": "Sunrise",
+  "wakeUpWindow": "Wake-up window",
+  "wakeUpWindowHint": "How long before the alarm the light starts building.",
+  "beforeAlarm": "{minutes} minutes before your alarm",
+  "@beforeAlarm": {
+    "placeholders": { "minutes": { "type": "int" } }
+  },
+  "sectionColors": "Colors",
+  "sunriseFooterNote": "The screen brightens gradually through these colors, reaching full white as the alarm sounds. Keep your phone face up where you can see it.",
+  "mySounds": "MY SOUNDS",
+  "alarmSounds": "ALARM SOUNDS",
+  "timerSounds": "TIMER SOUNDS",
+  "uploadCustomSound": "Upload Custom Sound",
+  "addCustomSound": "Add Custom Sound",
+  "add": "Add",
+  "soundNamePlaceholder": "Sound name (placeholder)",
+  "noSoundsYet": "No sounds added yet"
+}

@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
+import 'package:not_clock/l10n/app_localizations.dart';
 import 'package:not_clock/main.dart';
+import 'package:not_clock/models/alarm_data.dart';
+import 'package:not_clock/screens/alarm_sub/sound_picker.dart';
 import 'package:not_clock/theme/app_theme.dart';
 import 'package:not_clock/services/storage_service.dart';
+import 'package:not_clock/services/timer_sound_service.dart';
 
 // ─── Timer Data Model ─────────────────────────────────────────────────────────
 
@@ -31,6 +35,83 @@ class _TimerData {
   }
 }
 
+/// "1h 30m 15s" — unit letters are numeric shorthand and read the same in
+/// every language the app supports, so they stay as-is.
+String formatDurationShort(Duration d) {
+  final h = d.inHours;
+  final m = d.inMinutes.remainder(60);
+  final s = d.inSeconds.remainder(60);
+  final parts = <String>[];
+  if (h > 0) parts.add('${h}h');
+  if (m > 0) parts.add('${m}m');
+  if (s > 0) parts.add('${s}s');
+  return parts.join(' ');
+}
+
+/// Row that opens the timer sound picker. Shared by the inline picker and the
+/// Add Timer sheet so the control sits in the same place either way.
+class TimerSoundRow extends StatelessWidget {
+  const TimerSoundRow({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final settings = SettingsProvider.of(context);
+    final c = settings.colors;
+    final t = AppLocalizations.of(context);
+    final sound = settings.timerSound;
+
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () async {
+        final result = await Navigator.push<String>(
+          context,
+          MaterialPageRoute(
+            builder: (_) => SoundPickerScreen(
+              selectedSound: sound,
+              soundType: 'timers',
+            ),
+          ),
+        );
+        if (result != null) settings.timerSound = result;
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          color: c.card,
+          border: Border.all(color: c.divider, width: 1),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              sound == 'None' ? Icons.volume_off : Icons.music_note,
+              color: c.accentSoft,
+              size: 18,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(t.timerSound,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: c.text, fontSize: 15)),
+            ),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                sound == 'None' ? t.none : soundDisplayName(sound),
+                textAlign: TextAlign.end,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: c.subtext, fontSize: 14),
+              ),
+            ),
+            const SizedBox(width: 4),
+            Icon(Icons.chevron_right, color: c.muted, size: 20),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 // ─── Main Timers Screen ───────────────────────────────────────────────────────
 
 class TimersScreen extends StatefulWidget {
@@ -48,24 +129,18 @@ class _TimersScreenState extends State<TimersScreen> {
   @override
   void initState() {
     super.initState();
-    // Load saved recent timers from disk
     _loadRecents();
   }
 
-  /// Load recent timer durations from disk.
-  /// Stored as seconds, converted back to Duration.
   Future<void> _loadRecents() async {
     final saved = await StorageService.loadRecentTimers();
     if (saved.isNotEmpty) {
       setState(() {
-        _recentTimers.addAll(
-          saved.map((secs) => Duration(seconds: secs)),
-        );
+        _recentTimers.addAll(saved.map((secs) => Duration(seconds: secs)));
       });
     }
   }
 
-  /// Save recents to disk. Converts Duration to seconds for storage.
   Future<void> _saveRecents() async {
     await StorageService.saveRecentTimers(
       _recentTimers.map((d) => d.inSeconds).toList(),
@@ -80,29 +155,26 @@ class _TimersScreenState extends State<TimersScreen> {
     return '$m:$s';
   }
 
-  String _formatDurationShort(Duration d) {
-    final h = d.inHours;
-    final m = d.inMinutes.remainder(60);
-    final s = d.inSeconds.remainder(60);
-    final parts = <String>[];
-    if (h > 0) parts.add('${h}h');
-    if (m > 0) parts.add('${m}m');
-    if (s > 0) parts.add('${s}s');
-    return parts.join(' ');
-  }
-
   void _addToRecents(Duration duration) {
     _recentTimers.remove(duration);
     _recentTimers.insert(0, duration);
     if (_recentTimers.length > 10) _recentTimers.removeLast();
-    _saveRecents(); // Persist to disk
+    _saveRecents();
+  }
+
+  /// True while any timer on screen is sitting at zero. The sound belongs to
+  /// the group, not to one card, so it only stops once none are left ringing.
+  bool get _anyFinished => _timers.any((t) => t.isFinished);
+
+  void _stopSoundIfNothingRinging() {
+    if (!_anyFinished) TimerSoundService.stop();
   }
 
   void _startTimerFromDuration(Duration duration) {
     _timerCounter++;
     final timerData = _TimerData(
       id: 'timer_$_timerCounter',
-      label: _formatDurationShort(duration),
+      label: formatDurationShort(duration),
       totalDuration: duration,
     );
 
@@ -127,6 +199,9 @@ class _TimersScreenState extends State<TimersScreen> {
           data.isRunning = false;
           data.isFinished = true;
           data.timer?.cancel();
+          // Loops until cancelled, or 90 seconds, whichever comes first.
+          TimerSoundService.play(
+              SettingsProvider.read(context).timerSound);
         } else {
           data.remaining = newRemaining;
         }
@@ -152,6 +227,7 @@ class _TimersScreenState extends State<TimersScreen> {
     setState(() {
       _timers.remove(data);
     });
+    _stopSoundIfNothingRinging();
   }
 
   void _restartTimer(_TimerData data) {
@@ -160,6 +236,7 @@ class _TimersScreenState extends State<TimersScreen> {
       data.remaining = data.totalDuration;
       data.isFinished = false;
     });
+    _stopSoundIfNothingRinging();
     _runTimer(data);
   }
 
@@ -183,13 +260,16 @@ class _TimersScreenState extends State<TimersScreen> {
     for (final t in _timers) {
       t.timer?.cancel();
     }
+    // Leaving the tab shouldn't leave a timer ringing with nothing on screen
+    // to silence it.
+    TimerSoundService.stop();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final c = SettingsProvider.of(context).colors;
-    // If no timers and no recents, show the picker inline
+    final t = AppLocalizations.of(context);
     final showInlinePicker = _timers.isEmpty;
 
     return SafeArea(
@@ -198,13 +278,14 @@ class _TimersScreenState extends State<TimersScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('Timers',
-                    style: TextStyle(color: c.text, fontSize: 32,
-                        fontWeight: FontWeight.w700)),
+                Expanded(
+                  child: Text(t.timersTitle,
+                      style: TextStyle(color: c.text, fontSize: 32,
+                          fontWeight: FontWeight.w700)),
+                ),
                 Row(
                   children: [
                     if (!showInlinePicker)
@@ -227,18 +308,17 @@ class _TimersScreenState extends State<TimersScreen> {
             ),
             const SizedBox(height: 24),
 
-            // Content
             Expanded(
               child: showInlinePicker
                   ? _InlinePickerView(
                       recentTimers: _recentTimers,
                       onStart: (d) => _startTimerFromDuration(d),
                       onDeleteRecent: (i) {
-                          setState(() => _recentTimers.removeAt(i));
-                          _saveRecents(); // Persist deletion
-                        },
+                        setState(() => _recentTimers.removeAt(i));
+                        _saveRecents();
+                      },
                     )
-                  : _buildTimersAndRecents(c),
+                  : _buildTimersAndRecents(c, t),
             ),
           ],
         ),
@@ -246,20 +326,17 @@ class _TimersScreenState extends State<TimersScreen> {
     );
   }
 
-  // ── Active timers + recents in one scrollable list ──
-  Widget _buildTimersAndRecents(AppColors c) {
+  Widget _buildTimersAndRecents(AppColors c, AppLocalizations t) {
     return ListView(
       children: [
-        // Active timers
         for (int i = 0; i < _timers.length; i++) ...[
-          _buildTimerCard(c, _timers[i]),
+          _buildTimerCard(c, t, _timers[i]),
           if (i < _timers.length - 1) const SizedBox(height: 12),
         ],
 
-        // Recents section
         if (_recentTimers.isNotEmpty) ...[
           const SizedBox(height: 28),
-          Text('RECENTS',
+          Text(t.recents,
               style: TextStyle(color: c.subtext, fontSize: 12,
                   fontWeight: FontWeight.w500, letterSpacing: 1.2)),
           const SizedBox(height: 10),
@@ -293,7 +370,7 @@ class _TimersScreenState extends State<TimersScreen> {
       ),
       onDismissed: (_) {
         setState(() => _recentTimers.removeAt(index));
-        _saveRecents(); // Persist deletion
+        _saveRecents();
       },
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 12),
@@ -301,7 +378,7 @@ class _TimersScreenState extends State<TimersScreen> {
           children: [
             Expanded(
               child: Text(
-                _formatDurationShort(duration),
+                formatDurationShort(duration),
                 style: TextStyle(
                     color: c.text, fontSize: 18, fontWeight: FontWeight.w300),
               ),
@@ -326,7 +403,7 @@ class _TimersScreenState extends State<TimersScreen> {
     );
   }
 
-  Widget _buildTimerCard(AppColors c, _TimerData data) {
+  Widget _buildTimerCard(AppColors c, AppLocalizations t, _TimerData data) {
     final Color progressColor;
     if (data.isFinished) {
       progressColor = c.danger;
@@ -365,7 +442,7 @@ class _TimersScreenState extends State<TimersScreen> {
                     color: c.danger.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(6),
                   ),
-                  child: Text('DONE',
+                  child: Text(t.timerDone,
                       style: TextStyle(
                           color: c.danger,
                           fontSize: 11,
@@ -408,7 +485,8 @@ class _TimersScreenState extends State<TimersScreen> {
                       border: Border.all(color: c.divider),
                     ),
                     child: Center(
-                      child: Text('Cancel',
+                      child: Text(t.cancel,
+                          textAlign: TextAlign.center,
                           style: TextStyle(
                               color: c.subtext,
                               fontSize: 14,
@@ -445,10 +523,11 @@ class _TimersScreenState extends State<TimersScreen> {
                     child: Center(
                       child: Text(
                         data.isFinished
-                            ? 'Restart'
+                            ? t.restart
                             : data.isRunning
-                                ? 'Pause'
-                                : 'Resume',
+                                ? t.pause
+                                : t.resume,
+                        textAlign: TextAlign.center,
                         style: TextStyle(
                           color: data.isRunning ? c.warning : c.accentSoft,
                           fontSize: 14,
@@ -500,7 +579,6 @@ class _InlinePickerViewState extends State<_InlinePickerView> {
     _secondsController = FixedExtentScrollController(initialItem: 0);
   }
 
-  // Reset wheels every time this widget is rebuilt (tab switch)
   @override
   void didUpdateWidget(covariant _InlinePickerView oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -529,17 +607,6 @@ class _InlinePickerViewState extends State<_InlinePickerView> {
 
   bool get _pickerIsZero => _pickerDuration == Duration.zero;
 
-  String _formatDurationShort(Duration d) {
-    final h = d.inHours;
-    final m = d.inMinutes.remainder(60);
-    final s = d.inSeconds.remainder(60);
-    final parts = <String>[];
-    if (h > 0) parts.add('${h}h');
-    if (m > 0) parts.add('${m}m');
-    if (s > 0) parts.add('${s}s');
-    return parts.join(' ');
-  }
-
   void _setQuickTimer(Duration duration) {
     setState(() {
       _hours = duration.inHours;
@@ -557,12 +624,12 @@ class _InlinePickerViewState extends State<_InlinePickerView> {
   @override
   Widget build(BuildContext context) {
     final c = SettingsProvider.of(context).colors;
+    final t = AppLocalizations.of(context);
 
     return ListView(
       children: [
         const SizedBox(height: 20),
 
-        // Time picker wheels
         SizedBox(
           height: 200,
           child: Stack(
@@ -596,8 +663,7 @@ class _InlinePickerViewState extends State<_InlinePickerView> {
 
         const SizedBox(height: 28),
 
-        // Quick presets
-        Text('Quick timers',
+        Text(t.quickTimers,
             style: TextStyle(color: c.subtext, fontSize: 12,
                 fontWeight: FontWeight.w500, letterSpacing: 1.2)),
         const SizedBox(height: 10),
@@ -617,13 +683,14 @@ class _InlinePickerViewState extends State<_InlinePickerView> {
           ],
         ),
 
+        // ── Timer sound ──
+        const SizedBox(height: 14),
+        const TimerSoundRow(),
+
         const SizedBox(height: 28),
 
-        // Start button
         GestureDetector(
-          onTap: _pickerIsZero
-              ? null
-              : () => widget.onStart(_pickerDuration),
+          onTap: _pickerIsZero ? null : () => widget.onStart(_pickerDuration),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
             width: double.infinity,
@@ -642,21 +709,23 @@ class _InlinePickerViewState extends State<_InlinePickerView> {
                     color: _pickerIsZero ? c.muted : c.onAccent,
                     size: 24),
                 const SizedBox(width: 8),
-                Text('Start Timer',
-                    style: TextStyle(
-                      color: _pickerIsZero ? c.muted : c.onAccent,
-                      fontSize: 17,
-                      fontWeight: FontWeight.w600,
-                    )),
+                Flexible(
+                  child: Text(t.startTimer,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: _pickerIsZero ? c.muted : c.onAccent,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w600,
+                      )),
+                ),
               ],
             ),
           ),
         ),
 
-        // Recents
         if (widget.recentTimers.isNotEmpty) ...[
           const SizedBox(height: 32),
-          Text('RECENTS',
+          Text(t.recents,
               style: TextStyle(color: c.subtext, fontSize: 12,
                   fontWeight: FontWeight.w500, letterSpacing: 1.2)),
           const SizedBox(height: 10),
@@ -681,7 +750,7 @@ class _InlinePickerViewState extends State<_InlinePickerView> {
                   children: [
                     Expanded(
                       child: Text(
-                        _formatDurationShort(widget.recentTimers[i]),
+                        formatDurationShort(widget.recentTimers[i]),
                         style: TextStyle(color: c.text,
                             fontSize: 18, fontWeight: FontWeight.w300),
                       ),
@@ -827,17 +896,6 @@ class _AddTimerModalState extends State<_AddTimerModal> {
 
   bool get _pickerIsZero => _pickerDuration == Duration.zero;
 
-  String _formatDurationShort(Duration d) {
-    final h = d.inHours;
-    final m = d.inMinutes.remainder(60);
-    final s = d.inSeconds.remainder(60);
-    final parts = <String>[];
-    if (h > 0) parts.add('${h}h');
-    if (m > 0) parts.add('${m}m');
-    if (s > 0) parts.add('${s}s');
-    return parts.join(' ');
-  }
-
   void _setQuickTimer(Duration duration) {
     setState(() {
       _hours = duration.inHours;
@@ -855,6 +913,7 @@ class _AddTimerModalState extends State<_AddTimerModal> {
   @override
   Widget build(BuildContext context) {
     final c = SettingsProvider.of(context).colors;
+    final t = AppLocalizations.of(context);
 
     return Container(
       height: MediaQuery.of(context).size.height * 0.85,
@@ -864,7 +923,6 @@ class _AddTimerModalState extends State<_AddTimerModal> {
       ),
       child: Column(
         children: [
-          // Drag handle
           const SizedBox(height: 12),
           Container(
             width: 36,
@@ -875,7 +933,6 @@ class _AddTimerModalState extends State<_AddTimerModal> {
             ),
           ),
 
-          // Header
           Padding(
             padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
             child: Row(
@@ -883,18 +940,25 @@ class _AddTimerModalState extends State<_AddTimerModal> {
               children: [
                 GestureDetector(
                   onTap: () => Navigator.pop(context),
-                  child: Text('Cancel',
+                  child: Text(t.cancel,
                       style: TextStyle(color: c.subtext,
                           fontSize: 16, fontWeight: FontWeight.w400)),
                 ),
-                Text('Add Timer',
-                    style: TextStyle(color: c.text, fontSize: 17,
-                        fontWeight: FontWeight.w600)),
+                Flexible(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    child: Text(t.addTimer,
+                        textAlign: TextAlign.center,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(color: c.text, fontSize: 17,
+                            fontWeight: FontWeight.w600)),
+                  ),
+                ),
                 GestureDetector(
                   onTap: _pickerIsZero
                       ? null
                       : () => Navigator.pop(context, _pickerDuration),
-                  child: Text('Start',
+                  child: Text(t.start,
                       style: TextStyle(
                         color: _pickerIsZero ? c.muted : c.accent,
                         fontSize: 16,
@@ -907,7 +971,6 @@ class _AddTimerModalState extends State<_AddTimerModal> {
 
           const SizedBox(height: 24),
 
-          // Picker wheels
           Expanded(
             child: ListView(
               padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -919,8 +982,7 @@ class _AddTimerModalState extends State<_AddTimerModal> {
                     children: [
                       Container(
                         height: 48,
-                        margin:
-                            const EdgeInsets.symmetric(horizontal: 16),
+                        margin: const EdgeInsets.symmetric(horizontal: 16),
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(12),
                           color: c.accentWash(0.1),
@@ -947,8 +1009,7 @@ class _AddTimerModalState extends State<_AddTimerModal> {
 
                 const SizedBox(height: 28),
 
-                // Quick presets
-                Text('Quick timers',
+                Text(t.quickTimers,
                     style: TextStyle(color: c.subtext, fontSize: 12,
                         fontWeight: FontWeight.w500, letterSpacing: 1.2)),
                 const SizedBox(height: 10),
@@ -968,10 +1029,13 @@ class _AddTimerModalState extends State<_AddTimerModal> {
                   ],
                 ),
 
-                // Recents in modal
+                // ── Timer sound ──
+                const SizedBox(height: 14),
+                const TimerSoundRow(),
+
                 if (widget.recentTimers.isNotEmpty) ...[
                   const SizedBox(height: 32),
-                  Text('RECENTS',
+                  Text(t.recents,
                       style: TextStyle(color: c.subtext, fontSize: 12,
                           fontWeight: FontWeight.w500, letterSpacing: 1.2)),
                   const SizedBox(height: 10),
@@ -985,8 +1049,7 @@ class _AddTimerModalState extends State<_AddTimerModal> {
                           children: [
                             Expanded(
                               child: Text(
-                                _formatDurationShort(
-                                    widget.recentTimers[i]),
+                                formatDurationShort(widget.recentTimers[i]),
                                 style: TextStyle(
                                     color: c.text,
                                     fontSize: 18,

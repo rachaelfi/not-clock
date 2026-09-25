@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:not_clock/l10n/app_localizations.dart';
 import 'package:not_clock/main.dart';
 import 'package:not_clock/models/alarm_data.dart';
 import 'package:not_clock/screens/alarm_edit_screen.dart';
@@ -43,6 +44,7 @@ class _AlarmsScreenState extends State<AlarmsScreen> {
 
   void _showTimeUntilSnackbar(AlarmData alarm) {
     final c = SettingsProvider.read(context).colors;
+    final t = AppLocalizations.of(context);
     ScaffoldMessenger.of(context).clearSnackBars();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -51,7 +53,9 @@ class _AlarmsScreenState extends State<AlarmsScreen> {
             Icon(Icons.alarm_on, color: c.accentSoft, size: 20),
             const SizedBox(width: 12),
             Text(
-              'Alarm in ${alarm.timeUntilString()}',
+              // NOTE: timeUntilString() still builds an English string inside
+              // AlarmData. See the note at the bottom of this file.
+              t.alarmIn(alarm.timeUntilString()),
               style: TextStyle(color: c.text, fontSize: 14),
             ),
           ],
@@ -74,7 +78,7 @@ class _AlarmsScreenState extends State<AlarmsScreen> {
       hour: 7,
       minute: 0,
       isAM: true,
-      label: 'Alarm',
+      label: AppLocalizations.of(context).alarmDefaultLabel,
       enabled: true,
     );
 
@@ -129,6 +133,7 @@ class _AlarmsScreenState extends State<AlarmsScreen> {
   Widget build(BuildContext context) {
     final settings = SettingsProvider.of(context);
     final c = settings.colors;
+    final t = AppLocalizations.of(context);
 
     return SafeArea(
       child: Padding(
@@ -140,7 +145,7 @@ class _AlarmsScreenState extends State<AlarmsScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Alarms',
+                  t.alarmsTitle,
                   style: TextStyle(
                     color: c.text,
                     fontSize: 32,
@@ -176,7 +181,7 @@ class _AlarmsScreenState extends State<AlarmsScreen> {
                           Icon(Icons.alarm_off, size: 64, color: c.muted),
                           const SizedBox(height: 16),
                           Text(
-                            'No alarms',
+                            t.noAlarms,
                             style: TextStyle(color: c.subtext, fontSize: 16),
                           ),
                         ],
@@ -254,3 +259,13 @@ class _AlarmsScreenState extends State<AlarmsScreen> {
     );
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Still English: AlarmData.daysString and AlarmData.timeUntilString
+//
+//  Both build sentences inside the model — "Mon, Wed, Fri", "Every day",
+//  "2 hours 15 minutes" — so they can't see AppLocalizations and stay English
+//  in Spanish. Fixing that means moving the formatting out of AlarmData into a
+//  helper that takes AppLocalizations, since a model shouldn't need a
+//  BuildContext. Worth doing, but it's its own change.
+// ─────────────────────────────────────────────────────────────────────────────

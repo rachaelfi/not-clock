@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
+import 'package:not_clock/l10n/app_localizations.dart';
 import 'package:not_clock/main.dart';
 import 'package:not_clock/theme/app_theme.dart';
 
@@ -103,6 +104,7 @@ class _StopwatchScreenState extends State<StopwatchScreen> {
   @override
   Widget build(BuildContext context) {
     final c = SettingsProvider.of(context).colors;
+    final t = AppLocalizations.of(context);
     final elapsed = _stopwatch.elapsed;
     final isRunning = _stopwatch.isRunning;
     final hasStarted = elapsed > Duration.zero;
@@ -117,7 +119,7 @@ class _StopwatchScreenState extends State<StopwatchScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('Stopwatch',
+                Text(t.stopwatchTitle,
                     style: TextStyle(color: c.text, fontSize: 32,
                         fontWeight: FontWeight.w700)),
                 const SettingsGearButton(),
@@ -145,7 +147,10 @@ class _StopwatchScreenState extends State<StopwatchScreen> {
                     Padding(
                       padding: const EdgeInsets.only(top: 8),
                       child: Text(
-                        'Lap ${_laps.length + 1}  ${_formatLapDuration(_currentLapTime)}',
+                        t.currentLap(
+                          _laps.length + 1,
+                          _formatLapDuration(_currentLapTime),
+                        ),
                         style: TextStyle(
                           color: c.accentSoft,
                           fontSize: 16,
@@ -166,14 +171,14 @@ class _StopwatchScreenState extends State<StopwatchScreen> {
                 if (hasStarted)
                   _buildControlButton(
                     c: c,
-                    label: isRunning ? 'Lap' : 'Reset',
+                    label: isRunning ? t.lap : t.reset,
                     onTap: isRunning ? _lap : _reset,
                     isPrimary: false,
                   ),
                 if (hasStarted) const SizedBox(width: 12),
                 _buildControlButton(
                   c: c,
-                  label: isRunning ? 'Stop' : (hasStarted ? 'Resume' : 'Start'),
+                  label: isRunning ? t.stop : (hasStarted ? t.resume : t.start),
                   onTap: _startStop,
                   isPrimary: true,
                   isStop: isRunning,
@@ -187,11 +192,11 @@ class _StopwatchScreenState extends State<StopwatchScreen> {
             if (_laps.isNotEmpty) ...[
               Padding(
                 padding: const EdgeInsets.only(bottom: 12),
-                child: Text('LAPS',
+                child: Text(t.lapsHeader,
                     style: TextStyle(color: c.subtext, fontSize: 12,
                         fontWeight: FontWeight.w500, letterSpacing: 1.2)),
               ),
-              Expanded(child: _buildLapsList(c)),
+              Expanded(child: _buildLapsList(c, t)),
             ] else
               const Spacer(),
           ],
@@ -245,7 +250,7 @@ class _StopwatchScreenState extends State<StopwatchScreen> {
     );
   }
 
-  Widget _buildLapsList(AppColors c) {
+  Widget _buildLapsList(AppColors c, AppLocalizations t) {
     return ListView.separated(
       itemCount: _laps.length,
       separatorBuilder: (_, __) => Padding(
@@ -261,10 +266,10 @@ class _StopwatchScreenState extends State<StopwatchScreen> {
         String? badge;
         if (_bestLap != null && lapTime == _bestLap) {
           timeColor = c.success;
-          badge = 'BEST';
+          badge = t.bestLap;
         } else if (_worstLap != null && lapTime == _worstLap) {
           timeColor = c.danger;
-          badge = 'WORST';
+          badge = t.worstLap;
         }
 
         return Padding(
@@ -272,8 +277,8 @@ class _StopwatchScreenState extends State<StopwatchScreen> {
           child: Row(
             children: [
               SizedBox(
-                width: 60,
-                child: Text('Lap $lapNumber',
+                width: 76,
+                child: Text(t.lapLabel(lapNumber),
                     style: TextStyle(color: c.subtext, fontSize: 14)),
               ),
               if (badge != null)

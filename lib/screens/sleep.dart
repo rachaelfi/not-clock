@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
+import 'package:not_clock/l10n/app_localizations.dart';
 import 'package:not_clock/main.dart';
+import 'package:not_clock/config/sound_config.dart';
 import 'package:not_clock/models/alarm_data.dart';
 import 'package:not_clock/models/app_settings.dart';
 import 'package:not_clock/theme/app_theme.dart';
 import 'package:not_clock/screens/alarm_sub/sound_picker.dart';
 import 'package:not_clock/screens/night_clock_screen.dart';
 import 'package:not_clock/services/alarm_scheduler.dart';
-import 'package:not_clock/config/sound_config.dart';
+
 class SleepScreen extends StatefulWidget {
   const SleepScreen({super.key});
 
@@ -104,18 +106,18 @@ class _SleepScreenState extends State<SleepScreen>
     return alarmTime.difference(now);
   }
 
-  String _formatSleepDuration() {
+  String _formatSleepDuration(AppLocalizations t) {
     final duration = _getSleepDuration();
     final hours = duration.inHours;
     final minutes = duration.inMinutes % 60;
     final roundedMin = (minutes / 5).round() * 5;
-    if (roundedMin == 60) return '${hours + 1} h 00 min';
-    return '$hours h ${roundedMin.toString().padLeft(2, '0')} min';
+    if (roundedMin == 60) return t.sleepDurationValue(hours + 1, '00');
+    return t.sleepDurationValue(
+        hours, roundedMin.toString().padLeft(2, '0'));
   }
 
   /// The exact moment the sleep alarm will fire — today if it's still ahead,
-  /// otherwise tomorrow. The Night Clock uses this to know when to say
-  /// "Good morning!".
+  /// otherwise tomorrow.
   DateTime get _nextAlarmDateTime {
     final now = DateTime.now();
     var t = DateTime(
@@ -172,15 +174,13 @@ class _SleepScreenState extends State<SleepScreen>
     if (!is24h) go(_amPmController, _isAM ? 0 : 1);
   }
 
-  /// Stop on the night clock cancels the sleep alarm too, so the user has to
-  /// press Set Sleep Alarm again to bring the night clock back.
+  /// Stop on the night clock cancels the sleep alarm too.
   void _onNightClockStop() {
     _unregisterSleepAlarm();
     if (mounted) setState(() => _alarmIsSet = false);
   }
 
-  /// The user picked a new time from inside the night clock. Mirror it back
-  /// into the wheels and re-register with the scheduler.
+  /// The user picked a new time from inside the night clock.
   void _onNightClockAlarmChanged(DateTime newTime) {
     if (!mounted) return;
     setState(() {
@@ -206,8 +206,6 @@ class _SleepScreenState extends State<SleepScreen>
     });
     _syncWheels();
 
-    // The quick buttons used to flip _alarmIsSet without telling the scheduler,
-    // so the alarm never actually fired. They register it now.
     _registerSleepAlarm();
   }
 
@@ -216,11 +214,10 @@ class _SleepScreenState extends State<SleepScreen>
       _alarmIsSet = !_alarmIsSet;
     });
 
-    // Register or unregister the sleep alarm with the scheduler
     if (_alarmIsSet) {
       _registerSleepAlarm();
 
-            // Take over the screen if either feature needs it: the Night Clock for
+      // Take over the screen if either feature needs it: the Night Clock for
       // the whole night, or the sunrise, which needs a visible screen to
       // brighten.
       final s = SettingsProvider.read(context);
@@ -234,7 +231,6 @@ class _SleepScreenState extends State<SleepScreen>
         );
       }
     } else {
-      // User cancelled the sleep alarm
       _unregisterSleepAlarm();
     }
   }
@@ -262,6 +258,7 @@ class _SleepScreenState extends State<SleepScreen>
   Widget build(BuildContext context) {
     final settings = SettingsProvider.of(context);
     final c = settings.colors;
+    final t = AppLocalizations.of(context);
 
     return SafeArea(
       child: Padding(
@@ -272,7 +269,7 @@ class _SleepScreenState extends State<SleepScreen>
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('Sleep',
+                Text(t.sleepTitle,
                     style: TextStyle(color: c.text, fontSize: 32,
                         fontWeight: FontWeight.w700, letterSpacing: -0.5)),
                 const SettingsGearButton(),
@@ -314,7 +311,7 @@ class _SleepScreenState extends State<SleepScreen>
                               color: _alarmIsSet ? c.accentSoft : c.muted,
                               size: 18),
                           const SizedBox(width: 8),
-                          Text('sleep duration',
+                          Text(t.sleepDurationLabel,
                               style: TextStyle(
                                 color: _alarmIsSet ? c.subtext : c.muted,
                                 fontSize: 13, fontWeight: FontWeight.w400,
@@ -323,7 +320,7 @@ class _SleepScreenState extends State<SleepScreen>
                         ],
                       ),
                       const SizedBox(height: 8),
-                      Text('~ ${_formatSleepDuration()}',
+                      Text(_formatSleepDuration(t),
                           style: TextStyle(
                             color: _alarmIsSet ? c.text : c.subtext,
                             fontSize: 28, fontWeight: FontWeight.w300,
@@ -340,7 +337,6 @@ class _SleepScreenState extends State<SleepScreen>
             // ── Sound picker button + Flash toggle row ──
             Row(
               children: [
-                // Sound picker button (circular, left-aligned)
                 GestureDetector(
                   onTap: _openSoundPicker,
                   child: Container(
@@ -361,16 +357,14 @@ class _SleepScreenState extends State<SleepScreen>
                   ),
                 ),
                 const SizedBox(width: 8),
-                // Show selected sound name
                 Expanded(
                   child: Text(
                     _selectedSound == 'None'
-                        ? 'No sound'
+                        ? t.noSound
                         : soundDisplayName(_selectedSound),
                     style: TextStyle(color: c.subtext, fontSize: 13),
                   ),
                 ),
-                // Flash toggle
                 GestureDetector(
                   onTap: () => setState(() => _flashEnabled = !_flashEnabled),
                   child: Container(
@@ -393,7 +387,7 @@ class _SleepScreenState extends State<SleepScreen>
                           size: 16,
                         ),
                         const SizedBox(width: 4),
-                        Text('Flash',
+                        Text(t.flash,
                             style: TextStyle(
                               color: _flashEnabled ? c.accentSoft : c.muted,
                               fontSize: 12,
@@ -408,9 +402,9 @@ class _SleepScreenState extends State<SleepScreen>
 
             const SizedBox(height: 20),
             Expanded(child: _buildTimePicker(settings, c)),
-            _buildQuickSleepButtons(c),
+            _buildQuickSleepButtons(c, t),
             const SizedBox(height: 16),
-            _buildSetAlarmButton(c),
+            _buildSetAlarmButton(c, t),
             const SizedBox(height: 24),
           ],
         ),
@@ -482,7 +476,7 @@ class _SleepScreenState extends State<SleepScreen>
 
   Widget _build12HourWheel(AppColors c) {
     return IgnorePointer(
-      ignoring: _alarmIsSet, // Locked when alarm is set
+      ignoring: _alarmIsSet,
       child: ListWheelScrollView.useDelegate(
       controller: _hourController,
       itemExtent: 52, perspective: 0.003, diameterRatio: 1.5,
@@ -507,7 +501,7 @@ class _SleepScreenState extends State<SleepScreen>
 
   Widget _buildMinuteWheel(AppColors c) {
     return IgnorePointer(
-      ignoring: _alarmIsSet, // Locked when alarm is set
+      ignoring: _alarmIsSet,
       child: ListWheelScrollView.useDelegate(
       controller: _minuteController,
       itemExtent: 52, perspective: 0.003, diameterRatio: 1.5,
@@ -532,7 +526,7 @@ class _SleepScreenState extends State<SleepScreen>
 
   Widget _buildAmPmWheel(AppColors c) {
     return IgnorePointer(
-      ignoring: _alarmIsSet, // Locked when alarm is set
+      ignoring: _alarmIsSet,
       child: ListWheelScrollView.useDelegate(
         controller: _amPmController,
         itemExtent: 52, perspective: 0.003, diameterRatio: 1.5,
@@ -541,6 +535,9 @@ class _SleepScreenState extends State<SleepScreen>
         childDelegate: ListWheelChildBuilderDelegate(
           builder: (context, index) {
           if (index < 0 || index > 1) return null;
+          // AM/PM stay as-is: Spanish uses "a. m." / "p. m." in prose, but
+          // these are picker labels sitting beside digits, where the short
+          // Latin forms are what people expect.
           final label = index == 0 ? 'AM' : 'PM';
           final isSelected = (index == 0) == _isAM;
           return Center(child: Text(label,
@@ -555,14 +552,16 @@ class _SleepScreenState extends State<SleepScreen>
     ));
   }
 
-  Widget _buildQuickSleepButtons(AppColors c) {
+  Widget _buildQuickSleepButtons(AppColors c, AppLocalizations t) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Quick sleep',
+        Text(t.quickSleep,
             style: TextStyle(color: c.subtext, fontSize: 12,
                 fontWeight: FontWeight.w500, letterSpacing: 1.2)),
         const SizedBox(height: 10),
+        // "6h", "7.5h" and so on are left untranslated — they're numeric
+        // shorthand that reads the same in both languages.
         Row(
           children: [
             _quickButton(c, '6h', 6), const SizedBox(width: 10),
@@ -595,7 +594,7 @@ class _SleepScreenState extends State<SleepScreen>
     );
   }
 
-  Widget _buildSetAlarmButton(AppColors c) {
+  Widget _buildSetAlarmButton(AppColors c, AppLocalizations t) {
     return GestureDetector(
       onTap: _toggleAlarm,
       child: AnimatedContainer(
@@ -616,11 +615,15 @@ class _SleepScreenState extends State<SleepScreen>
                 color: _alarmIsSet ? c.subtext : c.onAccent,
                 size: 22),
             const SizedBox(width: 10),
-            Text(_alarmIsSet ? 'Cancel Alarm' : 'Set Sleep Alarm',
-                style: TextStyle(
-                  color: _alarmIsSet ? c.subtext : c.onAccent,
-                  fontSize: 17, fontWeight: FontWeight.w600, letterSpacing: 0.3,
-                )),
+            Flexible(
+              child: Text(_alarmIsSet ? t.cancelAlarm : t.setSleepAlarm,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: _alarmIsSet ? c.subtext : c.onAccent,
+                    fontSize: 17, fontWeight: FontWeight.w600,
+                    letterSpacing: 0.3,
+                  )),
+            ),
           ],
         ),
       ),

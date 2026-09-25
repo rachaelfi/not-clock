@@ -19,6 +19,9 @@ dependencies:
   url_launcher: ^6.3.1
   device_info_plus: ^11.2.0
   screen_brightness: ^2.1.4
+  flutter_localizations:
+    sdk: flutter
+  intl: any
 
 dev_dependencies:
   flutter_test:
@@ -27,6 +30,7 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  generate: true
   assets:
     - assets/sounds/alarms/
     - assets/sounds/timers/

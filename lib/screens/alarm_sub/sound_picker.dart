@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:not_clock/l10n/app_localizations.dart';
 import 'package:not_clock/main.dart';
 import 'package:not_clock/models/alarm_data.dart';
 import 'package:not_clock/config/sound_config.dart';
@@ -12,6 +13,10 @@ import 'package:not_clock/theme/app_theme.dart';
 /// - 'timers' shows sounds from assets/sounds/timers/
 ///
 /// Returns the selected filename (e.g. 'birds.mp3') or 'None'.
+///
+/// The sound names themselves stay in English: they come from the asset
+/// filenames via soundDisplayName, so translating them would mean maintaining
+/// a name per sound per language, and they'd no longer match the files on disk.
 class SoundPickerScreen extends StatefulWidget {
   final String selectedSound;
   final String soundType; // 'alarms' or 'timers'
@@ -78,6 +83,7 @@ class _SoundPickerScreenState extends State<SoundPickerScreen> {
   /// For now, this shows a placeholder dialog that simulates adding a sound.
   void _uploadCustomSound() {
     final c = SettingsProvider.read(context).colors;
+    final t = AppLocalizations.of(context);
     showDialog(
       context: context,
       builder: (ctx) {
@@ -86,11 +92,13 @@ class _SoundPickerScreenState extends State<SoundPickerScreen> {
           backgroundColor: c.card,
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Text('Add Custom Sound',
+          title: Text(t.addCustomSound,
               style: TextStyle(color: c.text, fontSize: 18)),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              // Developer scaffolding, not shipping copy — left in English
+              // since it disappears once file_picker is wired up.
               Text(
                 'In a full build, this would open a file picker to select '
                 'audio files (.mp3, .wav, .m4a) from your device.\n\n'
@@ -105,7 +113,7 @@ class _SoundPickerScreenState extends State<SoundPickerScreen> {
                 style: TextStyle(color: c.text),
                 cursorColor: c.accent,
                 decoration: InputDecoration(
-                  hintText: 'Sound name (placeholder)',
+                  hintText: t.soundNamePlaceholder,
                   hintStyle: TextStyle(color: c.muted),
                   enabledBorder: UnderlineInputBorder(
                     borderSide: BorderSide(color: c.accentWash(0.3)),
@@ -120,7 +128,7 @@ class _SoundPickerScreenState extends State<SoundPickerScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: Text('Cancel', style: TextStyle(color: c.subtext)),
+              child: Text(t.cancel, style: TextStyle(color: c.subtext)),
             ),
             TextButton(
               onPressed: () {
@@ -132,7 +140,7 @@ class _SoundPickerScreenState extends State<SoundPickerScreen> {
                 }
                 Navigator.pop(ctx);
               },
-              child: Text('Add', style: TextStyle(color: c.accent)),
+              child: Text(t.add, style: TextStyle(color: c.accent)),
             ),
           ],
         );
@@ -143,6 +151,7 @@ class _SoundPickerScreenState extends State<SoundPickerScreen> {
   @override
   Widget build(BuildContext context) {
     final c = SettingsProvider.of(context).colors;
+    final t = AppLocalizations.of(context);
 
     return Scaffold(
       backgroundColor: c.background,
@@ -156,7 +165,7 @@ class _SoundPickerScreenState extends State<SoundPickerScreen> {
             child: Icon(Icons.arrow_back_ios, color: c.accentSoft, size: 20),
           ),
         ),
-        title: Text('Sound',
+        title: Text(t.sound,
             style: TextStyle(
                 color: c.text, fontSize: 17, fontWeight: FontWeight.w600)),
         centerTitle: true,
@@ -180,11 +189,14 @@ class _SoundPickerScreenState extends State<SoundPickerScreen> {
                 children: [
                   Icon(Icons.add_circle_outline, color: c.accentSoft, size: 20),
                   const SizedBox(width: 8),
-                  Text('Upload Custom Sound',
-                      style: TextStyle(
-                          color: c.accentSoft,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w500)),
+                  Flexible(
+                    child: Text(t.uploadCustomSound,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                            color: c.accentSoft,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w500)),
+                  ),
                 ],
               ),
             ),
@@ -194,7 +206,7 @@ class _SoundPickerScreenState extends State<SoundPickerScreen> {
           if (_customSounds.isNotEmpty) ...[
             Padding(
               padding: const EdgeInsets.only(left: 4, bottom: 8),
-              child: Text('MY SOUNDS',
+              child: Text(t.mySounds,
                   style: TextStyle(
                       color: c.subtext,
                       fontSize: 12,
@@ -215,7 +227,8 @@ class _SoundPickerScreenState extends State<SoundPickerScreen> {
                   child: Divider(color: c.divider, height: 1),
                 ),
                 itemBuilder: (context, index) {
-                  return _soundTile(c, _customSounds[index], isCustom: true);
+                  return _soundTile(c, t, _customSounds[index],
+                      isCustom: true);
                 },
               ),
             ),
@@ -228,8 +241,8 @@ class _SoundPickerScreenState extends State<SoundPickerScreen> {
               padding: const EdgeInsets.only(left: 4, bottom: 8),
               child: Text(
                 widget.soundType == 'timers'
-                    ? 'TIMER SOUNDS'
-                    : 'ALARM SOUNDS',
+                    ? t.timerSounds
+                    : t.alarmSounds,
                 style: TextStyle(
                     color: c.subtext,
                     fontSize: 12,
@@ -251,7 +264,7 @@ class _SoundPickerScreenState extends State<SoundPickerScreen> {
                   child: Divider(color: c.divider, height: 1),
                 ),
                 itemBuilder: (context, index) {
-                  return _soundTile(c, _sounds[index]);
+                  return _soundTile(c, t, _sounds[index]);
                 },
               ),
             ),
@@ -269,9 +282,11 @@ class _SoundPickerScreenState extends State<SoundPickerScreen> {
                 children: [
                   Icon(Icons.music_off, color: c.muted, size: 40),
                   const SizedBox(height: 12),
-                  Text('No sounds added yet',
+                  Text(t.noSoundsYet,
+                      textAlign: TextAlign.center,
                       style: TextStyle(color: c.subtext, fontSize: 15)),
                   const SizedBox(height: 4),
+                  // Setup instructions for you, not for users — English.
                   Text(
                     'Add MP3 files to assets/sounds/ and\n'
                     'list them in lib/config/sound_config.dart\n'
@@ -290,7 +305,7 @@ class _SoundPickerScreenState extends State<SoundPickerScreen> {
               color: c.surface,
               borderRadius: BorderRadius.circular(16),
             ),
-            child: _soundTile(c, 'None'),
+            child: _soundTile(c, t, 'None'),
           ),
           const SizedBox(height: 40),
         ],
@@ -301,13 +316,14 @@ class _SoundPickerScreenState extends State<SoundPickerScreen> {
   /// Builds a single sound tile row.
   /// [isCustom] marks whether this is a user-uploaded sound (for future use
   /// when you need different preview logic for custom vs asset sounds).
-  Widget _soundTile(AppColors c, String filenameOrNone,
+  Widget _soundTile(AppColors c, AppLocalizations t, String filenameOrNone,
       {bool isCustom = false}) {
     final isNone = filenameOrNone == 'None';
     final isSelected = _selected == filenameOrNone;
-    // Show a pretty display name instead of the raw filename
+    // Show a pretty display name instead of the raw filename. Only "None" is
+    // translated — the rest come from the asset filenames.
     final displayName =
-        isNone ? 'None' : soundDisplayName(filenameOrNone);
+        isNone ? t.none : soundDisplayName(filenameOrNone);
 
     return GestureDetector(
       behavior: HitTestBehavior.opaque,

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:not_clock/l10n/app_localizations.dart';
 import 'package:not_clock/main.dart';
 import 'package:not_clock/models/alarm_data.dart';
 import 'package:not_clock/services/audio_service.dart';
@@ -102,6 +103,7 @@ class _AlarmFiringScreenState extends State<AlarmFiringScreen>
   Widget build(BuildContext context) {
     final settings = SettingsProvider.of(context);
     final c = settings.colors;
+    final t = AppLocalizations.of(context);
     final now = DateTime.now();
     // Respects the 24-hour setting, which the old hardcoded formatter didn't.
     final currentTimeString = settings.formatTime(now.hour, now.minute);
@@ -179,9 +181,11 @@ class _AlarmFiringScreenState extends State<AlarmFiringScreen>
 
                     const SizedBox(height: 8),
 
-                    // "Alarm" or "Sleep Alarm" subtitle
+                    // Greeting for a sleep alarm, otherwise the alarm's own
+                    // label — which the user typed, so it isn't translated.
                     Text(
-                      widget.isFromSleep ? 'Good Morning' : widget.alarm.label,
+                      widget.isFromSleep ? t.goodMorning : widget.alarm.label,
+                      textAlign: TextAlign.center,
                       style: TextStyle(
                         color: c.accentSoft.withValues(alpha: 0.7),
                         fontSize: 14,
@@ -198,7 +202,7 @@ class _AlarmFiringScreenState extends State<AlarmFiringScreen>
                         children: [
                           Icon(Icons.flash_on, color: c.warning, size: 14),
                           const SizedBox(width: 4),
-                          Text('Flash active',
+                          Text(t.flashActive,
                               style: TextStyle(
                                 color: c.warning.withValues(alpha: 0.7),
                                 fontSize: 12,
@@ -224,7 +228,8 @@ class _AlarmFiringScreenState extends State<AlarmFiringScreen>
                           ),
                           child: Column(
                             children: [
-                              Text('Snooze',
+                              Text(t.snooze,
+                                  textAlign: TextAlign.center,
                                   style: TextStyle(
                                     color: c.accentSoft,
                                     fontSize: 18,
@@ -232,7 +237,8 @@ class _AlarmFiringScreenState extends State<AlarmFiringScreen>
                                   )),
                               const SizedBox(height: 4),
                               Text(
-                                '${widget.alarm.snoozeDurationMinutes} minutes',
+                                t.minutesLong(
+                                    widget.alarm.snoozeDurationMinutes),
                                 style: TextStyle(
                                   color: c.accentSoft.withValues(alpha: 0.5),
                                   fontSize: 13,
@@ -258,7 +264,8 @@ class _AlarmFiringScreenState extends State<AlarmFiringScreen>
                           boxShadow: c.dangerGlow,
                         ),
                         child: Center(
-                          child: Text('Dismiss',
+                          child: Text(t.dismiss,
+                              textAlign: TextAlign.center,
                               style: TextStyle(
                                 color: c.onDanger,
                                 fontSize: 20,

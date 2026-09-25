@@ -1,0 +1,212 @@
+{
+  "@@locale": "es",
+
+  "settingsTitle": "Ajustes",
+  "sectionPersonalization": "Personalización",
+  "sectionSleep": "Sueño",
+  "sectionGeneral": "General",
+
+  "themeAndColors": "Tema y colores",
+  "appIcon": "Icono de la app",
+
+  "twentyFourHourTime": "Formato de 24 horas",
+  "twentyFourHourOn": "Los relojes muestran 00–23",
+  "twentyFourHourOff": "Los relojes muestran a. m. y p. m.",
+
+  "nightClock": "Reloj nocturno",
+  "nightClockSubtitle": "Muestra un reloj que se atenúa sobre un cielo nocturno al poner la alarma de sueño",
+  "nightClockNote": "Un cielo estrellado mientras duermes. Cuando suena la alarma cambia a amanecer, luz de día o estrellas según la hora.",
+
+  "sunriseSimulator": "Simulador de amanecer",
+  "sunriseSimulatorSubtitle": "Ilumina la pantalla poco a poco antes de que suene la alarma",
+  "sunriseSettings": "Ajustes del amanecer",
+  "sunriseSummary": "{minutes} min  ·  {preset}",
+  "@sunriseSummary": {
+    "placeholders": {
+      "minutes": { "type": "int" },
+      "preset": { "type": "String" }
+    }
+  },
+
+  "language": "Idioma",
+  "languageTitle": "Idioma",
+  "languageSystem": "Predeterminado del sistema",
+  "languageSystemSubtitle": "Sigue los ajustes de tu dispositivo",
+
+  "sendFeedback": "Enviar comentarios",
+  "sendFeedbackSubtitle": "Abre tu app de correo",
+  "shareApp": "Compartir app",
+  "shareAppSubtitle": "AirDrop, Mensajes, Correo, Copiar enlace",
+  "rateApp": "Valorar app",
+  "rateAppSubtitleIos": "Abre la página de reseñas del App Store",
+  "rateAppSubtitleAndroid": "Abre la ficha de Play Store",
+  "rateAppSubtitleOther": "Disponible en la app móvil",
+
+  "about": "Acerca de",
+  "aboutTitle": "Acerca de",
+  "versionShort": "Versión {version}",
+  "@versionShort": {
+    "placeholders": { "version": { "type": "String" } }
+  },
+  "versionFull": "Versión {version} ({build})",
+  "@versionFull": {
+    "placeholders": {
+      "version": { "type": "String" },
+      "build": { "type": "String" }
+    }
+  },
+  "appFooter": "{name} {version}",
+  "@appFooter": {
+    "placeholders": {
+      "name": { "type": "String" },
+      "version": { "type": "String" }
+    }
+  },
+
+  "tagline": "Alarmas, sueño y un cielo para quedarte dormido.",
+  "appDescription": "Not Clock reúne tus alarmas, relojes mundiales, cronómetro y temporizadores en un mismo lugar tranquilo. Pon una alarma de sueño y el Reloj nocturno se atenúa hasta un cielo estrellado, y te recibe con un amanecer o la luz del día cuando llega la hora de levantarte.",
+
+  "sectionLinks": "Enlaces",
+  "website": "Sitio web",
+  "privacyPolicy": "Política de privacidad",
+  "termsOfUse": "Términos de uso",
+
+  "sectionCredits": "Créditos",
+  "sectionSounds": "Sonidos",
+
+  "sectionLegal": "Aviso legal",
+  "openSourceLicenses": "Licencias de código abierto",
+  "openSourceLicensesSubtitle": "Librerías con las que está hecha esta app",
+
+  "madeWithFlutter": "Hecho con Flutter",
+
+  "notWiredUp": "{feature} aún no está implementado.",
+  "@notWiredUp": {
+    "placeholders": { "feature": { "type": "String" } }
+  },
+
+  "worldClockTitle": "Reloj mundial",
+  "myLocation": "MI UBICACIÓN",
+  "dst": "DST",
+  "addCityHint": "Toca + para añadir una ciudad",
+  "daytime": "Día",
+  "nighttime": "Noche",
+  "edit": "Editar",
+  "done": "Listo",
+
+  "alarmsTitle": "Alarmas",
+  "noAlarms": "Sin alarmas",
+  "alarmDefaultLabel": "Alarma",
+  "alarmIn": "Alarma en {time}",
+  "@alarmIn": {
+    "placeholders": { "time": { "type": "String" } }
+  },
+
+  "sleepTitle": "Sueño",
+  "sleepDurationLabel": "duración del sueño",
+  "sleepDurationValue": "~ {hours} h {minutes} min",
+  "@sleepDurationValue": {
+    "placeholders": {
+      "hours": { "type": "int" },
+      "minutes": { "type": "String" }
+    }
+  },
+  "noSound": "Sin sonido",
+  "flash": "Flash",
+  "quickSleep": "Sueño rápido",
+  "setSleepAlarm": "Poner alarma de sueño",
+  "cancelAlarm": "Cancelar alarma",
+
+  "stopwatchTitle": "Cronómetro",
+  "lapsHeader": "VUELTAS",
+  "lapLabel": "Vuelta {number}",
+  "@lapLabel": {
+    "placeholders": { "number": { "type": "int" } }
+  },
+  "currentLap": "Vuelta {number}  {time}",
+  "@currentLap": {
+    "placeholders": {
+      "number": { "type": "int" },
+      "time": { "type": "String" }
+    }
+  },
+  "bestLap": "MEJOR",
+  "worstLap": "PEOR",
+  "start": "Iniciar",
+  "stop": "Parar",
+  "resume": "Reanudar",
+  "reset": "Reiniciar",
+  "lap": "Vuelta",
+
+  "timersTitle": "Temporizadores",
+  "recents": "RECIENTES",
+  "quickTimers": "Temporizadores rápidos",
+  "startTimer": "Iniciar temporizador",
+  "addTimer": "Añadir temporizador",
+  "cancel": "Cancelar",
+  "timerDone": "LISTO",
+  "restart": "Reiniciar",
+  "pause": "Pausar",
+  "addAlarm": "Añadir alarma",
+  "editAlarm": "Editar alarma",
+  "save": "Guardar",
+  "repeat": "Repetir",
+  "labelField": "Etiqueta",
+  "sound": "Sonido",
+  "none": "Ninguno",
+  "flashAlarm": "Alarma con flash",
+  "flashAlarmSubtitle": "Parpadea la pantalla cuando suena la alarma",
+  "flashActive": "Flash activo",
+  "snooze": "Posponer",
+  "snoozeDuration": "Tiempo de posponer",
+  "snoozeFor": "Posponer {minutes} min",
+  "@snoozeFor": {
+    "placeholders": { "minutes": { "type": "int" } }
+  },
+  "minutesShort": "{minutes} min",
+  "@minutesShort": {
+    "placeholders": { "minutes": { "type": "int" } }
+  },
+  "minutesLong": "{minutes} minutos",
+  "@minutesLong": {
+    "placeholders": { "minutes": { "type": "int" } }
+  },
+  "deleteAlarm": "Eliminar alarma",
+  "deleteAlarmConfirm": "¿Seguro que quieres eliminar esta alarma?",
+  "delete": "Eliminar",
+  "dismiss": "Descartar",
+  "goodMorning": "¡Buenos días!",
+  "setAlarm": "Poner alarma",
+  "wakeUpAt": "Despertar a las",
+  "fromNow": "dentro de {hours} h {minutes} min",
+  "@fromNow": {
+    "placeholders": {
+      "hours": { "type": "int" },
+      "minutes": { "type": "String" }
+    }
+  },
+  "timerSound": "Sonido del temporizador",
+  "repeatEvery": "Repetir cada",
+  "reset": "Restablecer",
+  "sectionBackground": "Fondo",
+  "sectionAccent": "Acento",
+  "accentHint": "Se usa en botones, encabezados y todo lo que era morado.",
+  "savedAsYouGo": "Se guarda solo, no hace falta confirmar.",
+  "sunriseTitle": "Amanecer",
+  "wakeUpWindow": "Ventana de despertar",
+  "wakeUpWindowHint": "Cuánto antes de la alarma empieza a crecer la luz.",
+  "beforeAlarm": "{minutes} minutos antes de la alarma",
+  "@beforeAlarm": {
+    "placeholders": { "minutes": { "type": "int" } }
+  },
+  "sectionColors": "Colores",
+  "sunriseFooterNote": "La pantalla se ilumina poco a poco con estos colores hasta llegar al blanco cuando suena la alarma. Deja el teléfono boca arriba donde puedas verlo.",
+  "mySounds": "MIS SONIDOS",
+  "alarmSounds": "SONIDOS DE ALARMA",
+  "timerSounds": "SONIDOS DE TEMPORIZADOR",
+  "uploadCustomSound": "Subir sonido propio",
+  "addCustomSound": "Añadir sonido propio",
+  "add": "Añadir",
+  "soundNamePlaceholder": "Nombre del sonido (provisional)",
+  "noSoundsYet": "Aún no hay sonidos"
+}

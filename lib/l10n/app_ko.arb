@@ -1,0 +1,212 @@
+{
+  "@@locale": "ko",
+
+  "settingsTitle": "설정",
+  "sectionPersonalization": "개인 설정",
+  "sectionSleep": "수면",
+  "sectionGeneral": "일반",
+
+  "themeAndColors": "테마 및 색상",
+  "appIcon": "앱 아이콘",
+
+  "twentyFourHourTime": "24시간 형식",
+  "twentyFourHourOn": "시계에 00–23으로 표시",
+  "twentyFourHourOff": "시계에 오전/오후로 표시",
+
+  "nightClock": "야간 시계",
+  "nightClockSubtitle": "수면 알람을 설정하면 밤하늘 위에 어두워지는 시계를 표시합니다",
+  "nightClockNote": "잠자는 동안 별이 빛나는 하늘이 표시됩니다. 알람이 울리면 시간에 따라 일출, 낮 하늘 또는 별하늘로 바뀝니다.",
+
+  "sunriseSimulator": "일출 시뮬레이터",
+  "sunriseSimulatorSubtitle": "알람이 울리기 전에 화면을 서서히 밝게 합니다",
+  "sunriseSettings": "일출 설정",
+  "sunriseSummary": "{minutes}분  ·  {preset}",
+  "@sunriseSummary": {
+    "placeholders": {
+      "minutes": { "type": "int" },
+      "preset": { "type": "String" }
+    }
+  },
+
+  "language": "언어",
+  "languageTitle": "언어",
+  "languageSystem": "시스템 기본값",
+  "languageSystemSubtitle": "기기 설정을 따릅니다",
+
+  "sendFeedback": "피드백 보내기",
+  "sendFeedbackSubtitle": "메일 앱을 엽니다",
+  "shareApp": "앱 공유",
+  "shareAppSubtitle": "AirDrop, 메시지, 메일, 링크 복사",
+  "rateApp": "앱 평가",
+  "rateAppSubtitleIos": "App Store 리뷰 페이지를 엽니다",
+  "rateAppSubtitleAndroid": "Play 스토어 페이지를 엽니다",
+  "rateAppSubtitleOther": "모바일 앱에서 사용할 수 있습니다",
+
+  "about": "정보",
+  "aboutTitle": "정보",
+  "versionShort": "버전 {version}",
+  "@versionShort": {
+    "placeholders": { "version": { "type": "String" } }
+  },
+  "versionFull": "버전 {version} ({build})",
+  "@versionFull": {
+    "placeholders": {
+      "version": { "type": "String" },
+      "build": { "type": "String" }
+    }
+  },
+  "appFooter": "{name} {version}",
+  "@appFooter": {
+    "placeholders": {
+      "name": { "type": "String" },
+      "version": { "type": "String" }
+    }
+  },
+
+  "tagline": "알람, 수면, 그리고 잠들기 좋은 하늘.",
+  "appDescription": "Not Clock은 알람, 세계 시계, 스톱워치, 타이머를 차분한 한 곳에 모았습니다. 수면 알람을 설정하면 야간 시계가 별이 빛나는 하늘로 어두워지고, 일어날 시간이 되면 일출이나 낮 하늘로 맞이합니다.",
+
+  "sectionLinks": "링크",
+  "website": "웹사이트",
+  "privacyPolicy": "개인정보 처리방침",
+  "termsOfUse": "이용약관",
+
+  "sectionCredits": "크레딧",
+  "sectionSounds": "사운드",
+
+  "sectionLegal": "법적 고지",
+  "openSourceLicenses": "오픈소스 라이선스",
+  "openSourceLicensesSubtitle": "이 앱에 사용된 라이브러리",
+
+  "madeWithFlutter": "Flutter로 제작",
+
+  "notWiredUp": "{feature} 기능은 아직 준비 중입니다.",
+  "@notWiredUp": {
+    "placeholders": { "feature": { "type": "String" } }
+  },
+
+  "worldClockTitle": "세계 시계",
+  "myLocation": "내 위치",
+  "dst": "서머타임",
+  "addCityHint": "+를 눌러 도시를 추가하세요",
+  "daytime": "낮",
+  "nighttime": "밤",
+  "edit": "편집",
+  "done": "완료",
+
+  "alarmsTitle": "알람",
+  "noAlarms": "알람 없음",
+  "alarmDefaultLabel": "알람",
+  "alarmIn": "{time} 후 알람",
+  "@alarmIn": {
+    "placeholders": { "time": { "type": "String" } }
+  },
+
+  "sleepTitle": "수면",
+  "sleepDurationLabel": "수면 시간",
+  "sleepDurationValue": "~ {hours}시간 {minutes}분",
+  "@sleepDurationValue": {
+    "placeholders": {
+      "hours": { "type": "int" },
+      "minutes": { "type": "String" }
+    }
+  },
+  "noSound": "소리 없음",
+  "flash": "플래시",
+  "quickSleep": "빠른 수면",
+  "setSleepAlarm": "수면 알람 설정",
+  "cancelAlarm": "알람 취소",
+
+  "stopwatchTitle": "스톱워치",
+  "lapsHeader": "랩",
+  "lapLabel": "랩 {number}",
+  "@lapLabel": {
+    "placeholders": { "number": { "type": "int" } }
+  },
+  "currentLap": "랩 {number}  {time}",
+  "@currentLap": {
+    "placeholders": {
+      "number": { "type": "int" },
+      "time": { "type": "String" }
+    }
+  },
+  "bestLap": "최고",
+  "worstLap": "최저",
+  "start": "시작",
+  "stop": "중지",
+  "resume": "계속",
+  "reset": "재설정",
+  "lap": "랩",
+
+  "timersTitle": "타이머",
+  "recents": "최근 항목",
+  "quickTimers": "빠른 타이머",
+  "startTimer": "타이머 시작",
+  "addTimer": "타이머 추가",
+  "cancel": "취소",
+  "timerDone": "완료",
+  "restart": "다시 시작",
+  "pause": "일시정지",
+  "addAlarm": "알람 추가",
+  "editAlarm": "알람 편집",
+  "save": "저장",
+  "repeat": "반복",
+  "labelField": "이름",
+  "sound": "사운드",
+  "none": "없음",
+  "flashAlarm": "플래시 알람",
+  "flashAlarmSubtitle": "알람이 울릴 때 화면을 깜박입니다",
+  "flashActive": "플래시 켜짐",
+  "snooze": "다시 알림",
+  "snoozeDuration": "다시 알림 간격",
+  "snoozeFor": "{minutes}분 후 다시 알림",
+  "@snoozeFor": {
+    "placeholders": { "minutes": { "type": "int" } }
+  },
+  "minutesShort": "{minutes}분",
+  "@minutesShort": {
+    "placeholders": { "minutes": { "type": "int" } }
+  },
+  "minutesLong": "{minutes}분",
+  "@minutesLong": {
+    "placeholders": { "minutes": { "type": "int" } }
+  },
+  "deleteAlarm": "알람 삭제",
+  "deleteAlarmConfirm": "이 알람을 삭제하시겠습니까?",
+  "delete": "삭제",
+  "dismiss": "해제",
+  "goodMorning": "좋은 아침이에요!",
+  "setAlarm": "알람 설정",
+  "wakeUpAt": "기상 시각",
+  "fromNow": "{hours}시간 {minutes}분 후",
+  "@fromNow": {
+    "placeholders": {
+      "hours": { "type": "int" },
+      "minutes": { "type": "String" }
+    }
+  },
+  "timerSound": "타이머 사운드",
+  "repeatEvery": "반복 요일",
+  "reset": "초기화",
+  "sectionBackground": "배경",
+  "sectionAccent": "강조 색상",
+  "accentHint": "버튼, 제목 등 기존에 보라색이던 요소에 사용됩니다.",
+  "savedAsYouGo": "선택하는 즉시 저장됩니다.",
+  "sunriseTitle": "일출",
+  "wakeUpWindow": "기상 준비 시간",
+  "wakeUpWindowHint": "알람이 울리기 얼마나 전부터 밝아지기 시작할지 정합니다.",
+  "beforeAlarm": "알람 {minutes}분 전",
+  "@beforeAlarm": {
+    "placeholders": { "minutes": { "type": "int" } }
+  },
+  "sectionColors": "색상",
+  "sunriseFooterNote": "화면이 이 색상들을 거쳐 서서히 밝아지며, 알람이 울릴 때 완전한 흰색이 됩니다. 휴대폰을 화면이 위로 오도록 보이는 곳에 두세요.",
+  "mySounds": "내 사운드",
+  "alarmSounds": "알람 사운드",
+  "timerSounds": "타이머 사운드",
+  "uploadCustomSound": "사운드 추가하기",
+  "addCustomSound": "사운드 추가",
+  "add": "추가",
+  "soundNamePlaceholder": "사운드 이름 (임시)",
+  "noSoundsYet": "아직 추가된 사운드가 없습니다"
+}

@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:not_clock/services/storage_service.dart';
 import 'package:not_clock/theme/app_theme.dart';
-
+import 'package:not_clock/config/sound_config.dart';
 /// Global app settings, shared across all screens via InheritedWidget.
 /// Automatically saves to disk when changed and loads on init.
 class AppSettings extends ChangeNotifier {
   bool _use24HourFormat = false;
+
+  String _languageCode = ''; // empty = follow the device
+  String _timerSound = defaultTimerSound;
 
   // Personalization
   ThemeFlavor _flavor = ThemeFlavor.midnight;
@@ -35,6 +38,23 @@ class AppSettings extends ChangeNotifier {
   void toggle24HourFormat() {
     use24HourFormat = !_use24HourFormat;
   }
+
+  // ─── Language ──────────────────────────────────────────────────────────────────
+
+  String get languageCode => _languageCode;
+
+  set languageCode(String value) {
+    if (_languageCode != value) {
+      _languageCode = value;
+      notifyListeners();
+      StorageService.saveLanguage(value);
+    }
+  }
+
+  /// Null hands the choice back to the OS, which is what MaterialApp's
+  /// `locale` expects for "system default".
+  Locale? get locale =>
+      _languageCode.isEmpty ? null : Locale(_languageCode);
 
   // ─── Theme ──────────────────────────────────────────────────────────────────
 
@@ -125,6 +145,16 @@ class AppSettings extends ChangeNotifier {
     }
   }
 
+  String get timerSound => _timerSound;
+
+  set timerSound(String value) {
+    if (_timerSound != value) {
+      _timerSound = value;
+      notifyListeners();
+      StorageService.saveTimerSound(value);
+    }
+  }
+
   // ─── Loading ────────────────────────────────────────────────────────────────
 
   /// Load saved settings from disk. Call this once at app startup.
@@ -135,7 +165,9 @@ class AppSettings extends ChangeNotifier {
     _sunrisePresetId = await StorageService.loadSunrisePreset();
     _sunriseWindowMinutes = await StorageService.loadSunriseWindow();
     _appIconId = await StorageService.loadAppIcon();
-
+    _languageCode = await StorageService.loadLanguage();
+    _timerSound = await StorageService.loadTimerSound();
+    
     final flavorName = await StorageService.loadThemeFlavor();
     _flavor = ThemeFlavor.values.firstWhere(
       (f) => f.name == flavorName,

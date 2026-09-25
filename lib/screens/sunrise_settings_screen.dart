@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:not_clock/l10n/app_localizations.dart';
 import 'package:not_clock/config/sunrise_presets.dart';
 import 'package:not_clock/models/app_settings.dart';
 import 'package:not_clock/theme/app_theme.dart';
@@ -6,6 +7,9 @@ import 'package:not_clock/screens/settings_screen.dart' show BackChip;
 
 /// Wake-up window length and sunrise colour preset. Both save as you pick
 /// them — no confirm step, same as the theme picker.
+///
+/// Preset names and their descriptions stay in English, matching how the
+/// Catppuccin palette names are handled in the theme picker.
 class SunriseSettingsScreen extends StatelessWidget {
   final AppSettings settings;
 
@@ -17,6 +21,7 @@ class SunriseSettingsScreen extends StatelessWidget {
       listenable: settings,
       builder: (context, _) {
         final c = settings.colors;
+        final t = AppLocalizations.of(context);
         final preset = SunrisePreset.byId(settings.sunrisePresetId);
 
         return Scaffold(
@@ -32,7 +37,7 @@ class SunriseSettingsScreen extends StatelessWidget {
                       BackChip(colors: c),
                       const SizedBox(width: 16),
                       Expanded(
-                        child: Text('Sunrise',
+                        child: Text(t.sunriseTitle,
                             style: TextStyle(
                               color: c.text,
                               fontSize: 26,
@@ -57,15 +62,14 @@ class SunriseSettingsScreen extends StatelessWidget {
                         alignment: Alignment.bottomLeft,
                         padding: const EdgeInsets.all(14),
                         child: Text(
-                          '${settings.sunriseWindowMinutes} minutes '
-                          'before your alarm',
-                          style: TextStyle(
+                          t.beforeAlarm(settings.sunriseWindowMinutes),
+                          style: const TextStyle(
                             // The right-hand end of every preset is near-white,
                             // so dark text with a light shadow always reads.
-                            color: const Color(0xFF12212E),
+                            color: Color(0xFF12212E),
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
-                            shadows: const [
+                            shadows: [
                               Shadow(
                                 color: Color(0x80FFFFFF),
                                 blurRadius: 8,
@@ -76,10 +80,10 @@ class SunriseSettingsScreen extends StatelessWidget {
                       ),
 
                       const SizedBox(height: 28),
-                      _Label('Wake-up window', colors: c),
+                      _Label(t.wakeUpWindow, colors: c),
                       const SizedBox(height: 4),
                       Text(
-                        'How long before the alarm the light starts building.',
+                        t.wakeUpWindowHint,
                         style: TextStyle(
                             color: c.muted, fontSize: 12.5, height: 1.4),
                       ),
@@ -111,7 +115,7 @@ class SunriseSettingsScreen extends StatelessWidget {
                                 ),
                               ),
                               child: Text(
-                                '$minutes min',
+                                t.minutesShort(minutes),
                                 style: TextStyle(
                                   color: selected ? c.accentSoft : c.subtext,
                                   fontSize: 14,
@@ -126,7 +130,7 @@ class SunriseSettingsScreen extends StatelessWidget {
                       ),
 
                       const SizedBox(height: 30),
-                      _Label('Colours', colors: c),
+                      _Label(t.sectionColors, colors: c),
                       const SizedBox(height: 12),
                       ...SunrisePreset.all.map((p) => Padding(
                             padding: const EdgeInsets.only(bottom: 10),
@@ -141,9 +145,7 @@ class SunriseSettingsScreen extends StatelessWidget {
 
                       const SizedBox(height: 16),
                       Text(
-                        'The screen brightens gradually through these colours, '
-                        'reaching full white as the alarm sounds. Keep your '
-                        'phone face up where you can see it.',
+                        t.sunriseFooterNote,
                         style: TextStyle(
                             color: c.muted, fontSize: 12, height: 1.45),
                       ),
@@ -220,6 +222,8 @@ class _PresetTile extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Preset names and descriptions stay in English — see the
+                  // class doc on SunriseSettingsScreen.
                   Text(preset.name,
                       style: TextStyle(
                           color: colors.text,

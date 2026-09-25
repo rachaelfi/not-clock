@@ -1,0 +1,212 @@
+{
+  "@@locale": "de",
+
+  "settingsTitle": "Einstellungen",
+  "sectionPersonalization": "Personalisierung",
+  "sectionSleep": "Schlaf",
+  "sectionGeneral": "Allgemein",
+
+  "themeAndColors": "Design und Farben",
+  "appIcon": "App-Symbol",
+
+  "twentyFourHourTime": "24-Stunden-Format",
+  "twentyFourHourOn": "Uhren zeigen 00–23",
+  "twentyFourHourOff": "Uhren zeigen AM und PM",
+
+  "nightClock": "Nachtuhr",
+  "nightClockSubtitle": "Zeigt eine abdunkelnde Uhr mit Nachthimmel, sobald du einen Schlafwecker stellst",
+  "nightClockNote": "Ein Sternenhimmel, während du schläfst. Wenn der Wecker klingelt, wird daraus je nach Uhrzeit Sonnenaufgang, Tageslicht oder Sterne.",
+
+  "sunriseSimulator": "Sonnenaufgangs-Simulator",
+  "sunriseSimulatorSubtitle": "Hellt den Bildschirm vor dem Wecker allmählich auf",
+  "sunriseSettings": "Sonnenaufgang-Einstellungen",
+  "sunriseSummary": "{minutes} Min.  ·  {preset}",
+  "@sunriseSummary": {
+    "placeholders": {
+      "minutes": { "type": "int" },
+      "preset": { "type": "String" }
+    }
+  },
+
+  "language": "Sprache",
+  "languageTitle": "Sprache",
+  "languageSystem": "Systemstandard",
+  "languageSystemSubtitle": "Folgt den Einstellungen deines Geräts",
+
+  "sendFeedback": "Feedback senden",
+  "sendFeedbackSubtitle": "Öffnet deine Mail-App",
+  "shareApp": "App teilen",
+  "shareAppSubtitle": "AirDrop, Nachrichten, Mail, Link kopieren",
+  "rateApp": "App bewerten",
+  "rateAppSubtitleIos": "Öffnet die Bewertungsseite im App Store",
+  "rateAppSubtitleAndroid": "Öffnet den Play-Store-Eintrag",
+  "rateAppSubtitleOther": "In der mobilen App verfügbar",
+
+  "about": "Info",
+  "aboutTitle": "Info",
+  "versionShort": "Version {version}",
+  "@versionShort": {
+    "placeholders": { "version": { "type": "String" } }
+  },
+  "versionFull": "Version {version} ({build})",
+  "@versionFull": {
+    "placeholders": {
+      "version": { "type": "String" },
+      "build": { "type": "String" }
+    }
+  },
+  "appFooter": "{name} {version}",
+  "@appFooter": {
+    "placeholders": {
+      "name": { "type": "String" },
+      "version": { "type": "String" }
+    }
+  },
+
+  "tagline": "Wecker, Schlaf und ein Himmel zum Einschlafen.",
+  "appDescription": "Not Clock vereint Wecker, Weltuhren, Stoppuhr und Timer an einem ruhigen Ort. Stelle einen Schlafwecker und die Nachtuhr dunkelt zu einem Sternenhimmel ab – und begrüßt dich mit Sonnenaufgang oder Tageslicht, wenn es Zeit zum Aufstehen ist.",
+
+  "sectionLinks": "Links",
+  "website": "Website",
+  "privacyPolicy": "Datenschutzerklärung",
+  "termsOfUse": "Nutzungsbedingungen",
+
+  "sectionCredits": "Danksagungen",
+  "sectionSounds": "Töne",
+
+  "sectionLegal": "Rechtliches",
+  "openSourceLicenses": "Open-Source-Lizenzen",
+  "openSourceLicensesSubtitle": "Bibliotheken, mit denen diese App gebaut ist",
+
+  "madeWithFlutter": "Mit Flutter erstellt",
+
+  "notWiredUp": "{feature} ist noch nicht verfügbar.",
+  "@notWiredUp": {
+    "placeholders": { "feature": { "type": "String" } }
+  },
+
+  "worldClockTitle": "Weltuhr",
+  "myLocation": "MEIN STANDORT",
+  "dst": "SOMMERZEIT",
+  "addCityHint": "Tippe auf +, um eine Stadt hinzuzufügen",
+  "daytime": "Tag",
+  "nighttime": "Nacht",
+  "edit": "Bearbeiten",
+  "done": "Fertig",
+
+  "alarmsTitle": "Wecker",
+  "noAlarms": "Keine Wecker",
+  "alarmDefaultLabel": "Wecker",
+  "alarmIn": "Wecker in {time}",
+  "@alarmIn": {
+    "placeholders": { "time": { "type": "String" } }
+  },
+
+  "sleepTitle": "Schlaf",
+  "sleepDurationLabel": "Schlafdauer",
+  "sleepDurationValue": "~ {hours} Std. {minutes} Min.",
+  "@sleepDurationValue": {
+    "placeholders": {
+      "hours": { "type": "int" },
+      "minutes": { "type": "String" }
+    }
+  },
+  "noSound": "Kein Ton",
+  "flash": "Blitz",
+  "quickSleep": "Schnellschlaf",
+  "setSleepAlarm": "Schlafwecker stellen",
+  "cancelAlarm": "Wecker abbrechen",
+
+  "stopwatchTitle": "Stoppuhr",
+  "lapsHeader": "RUNDEN",
+  "lapLabel": "Runde {number}",
+  "@lapLabel": {
+    "placeholders": { "number": { "type": "int" } }
+  },
+  "currentLap": "Runde {number}  {time}",
+  "@currentLap": {
+    "placeholders": {
+      "number": { "type": "int" },
+      "time": { "type": "String" }
+    }
+  },
+  "bestLap": "BESTE",
+  "worstLap": "SCHLECHTESTE",
+  "start": "Start",
+  "stop": "Stopp",
+  "resume": "Fortsetzen",
+  "reset": "Zurücksetzen",
+  "lap": "Runde",
+
+  "timersTitle": "Timer",
+  "recents": "ZULETZT",
+  "quickTimers": "Schnelle Timer",
+  "startTimer": "Timer starten",
+  "addTimer": "Timer hinzufügen",
+  "cancel": "Abbrechen",
+  "timerDone": "FERTIG",
+  "restart": "Neu starten",
+  "pause": "Pause",
+  "addAlarm": "Wecker hinzufügen",
+  "editAlarm": "Wecker bearbeiten",
+  "save": "Sichern",
+  "repeat": "Wiederholen",
+  "labelField": "Name",
+  "sound": "Ton",
+  "none": "Keiner",
+  "flashAlarm": "Blitz-Wecker",
+  "flashAlarmSubtitle": "Lässt den Bildschirm blinken, wenn der Wecker klingelt",
+  "flashActive": "Blitz aktiv",
+  "snooze": "Schlummern",
+  "snoozeDuration": "Schlummerdauer",
+  "snoozeFor": "{minutes} Min. schlummern",
+  "@snoozeFor": {
+    "placeholders": { "minutes": { "type": "int" } }
+  },
+  "minutesShort": "{minutes} Min.",
+  "@minutesShort": {
+    "placeholders": { "minutes": { "type": "int" } }
+  },
+  "minutesLong": "{minutes} Minuten",
+  "@minutesLong": {
+    "placeholders": { "minutes": { "type": "int" } }
+  },
+  "deleteAlarm": "Wecker löschen",
+  "deleteAlarmConfirm": "Möchtest du diesen Wecker wirklich löschen?",
+  "delete": "Löschen",
+  "dismiss": "Beenden",
+  "goodMorning": "Guten Morgen!",
+  "setAlarm": "Wecker stellen",
+  "wakeUpAt": "Aufwachen um",
+  "fromNow": "in {hours} Std. {minutes} Min.",
+  "@fromNow": {
+    "placeholders": {
+      "hours": { "type": "int" },
+      "minutes": { "type": "String" }
+    }
+  },
+  "timerSound": "Timer-Ton",
+  "repeatEvery": "Wiederholen jeden",
+  "reset": "Zurücksetzen",
+  "sectionBackground": "Hintergrund",
+  "sectionAccent": "Akzent",
+  "accentHint": "Wird für Tasten, Überschriften und alles bisher Violette verwendet.",
+  "savedAsYouGo": "Wird sofort gesichert, kein Bestätigen nötig.",
+  "sunriseTitle": "Sonnenaufgang",
+  "wakeUpWindow": "Aufwachfenster",
+  "wakeUpWindowHint": "Wie lange vor dem Wecker das Licht aufzubauen beginnt.",
+  "beforeAlarm": "{minutes} Minuten vor deinem Wecker",
+  "@beforeAlarm": {
+    "placeholders": { "minutes": { "type": "int" } }
+  },
+  "sectionColors": "Farben",
+  "sunriseFooterNote": "Der Bildschirm wird über diese Farben hinweg allmählich heller und erreicht reines Weiß, wenn der Wecker klingelt. Lege dein Handy mit dem Display nach oben in Sichtweite.",
+  "mySounds": "MEINE TÖNE",
+  "alarmSounds": "WECKERTÖNE",
+  "timerSounds": "TIMER-TÖNE",
+  "uploadCustomSound": "Eigenen Ton laden",
+  "addCustomSound": "Eigenen Ton hinzufügen",
+  "add": "Hinzufügen",
+  "soundNamePlaceholder": "Name des Tons (vorläufig)",
+  "noSoundsYet": "Noch keine Töne"
+}

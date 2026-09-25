@@ -32,4 +32,4 @@ const List<String> timerSounds = [
 const String defaultAlarmSound = 'birds.mp3';
  
 
-const String defaultTimerSound = 'digital-bell.mp3';
+const String defaultTimerSound = 'timer.mp3';

@@ -2,6 +2,8 @@ import 'dart:math' as math;
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:intl/intl.dart';
+import 'package:not_clock/l10n/app_localizations.dart';
 import 'package:not_clock/main.dart';
 import 'package:not_clock/models/alarm_data.dart';
 import 'package:not_clock/models/app_settings.dart';
@@ -296,7 +298,7 @@ class _NightClockScreenState extends State<NightClockScreen>
     });
   }
 
-    void _dismissAlarm() {
+  void _dismissAlarm() {
     final alarm = _firingAlarm;
     if (alarm == null) return;
 
@@ -639,6 +641,8 @@ class _ClockFace extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
+    final locale = Localizations.localeOf(context).toLanguageTag();
     final clockShadow = _shadowFor(clockInk);
 
     return Column(
@@ -656,27 +660,31 @@ class _ClockFace extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 10),
-        if (alarmFired)
-          Text(
-            'Good morning!',
-            style: TextStyle(
-              color: clockInk,
-              fontSize: 26,
-              fontWeight: FontWeight.w500,
-              letterSpacing: 0.2,
-              shadows: clockShadow,
-            ),
-          )
-        else
-          Text(
-            _dateLine(now),
-            style: TextStyle(
-              color: clockInk.withValues(alpha: 0.75),
-              fontSize: 16,
-              fontWeight: FontWeight.w400,
-              shadows: clockShadow,
-            ),
-          ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: alarmFired
+              ? Text(
+                  t.goodMorning,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: clockInk,
+                    fontSize: 26,
+                    fontWeight: FontWeight.w500,
+                    letterSpacing: 0.2,
+                    shadows: clockShadow,
+                  ),
+                )
+              : Text(
+                  _dateLine(now, locale),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: clockInk.withValues(alpha: 0.75),
+                    fontSize: 16,
+                    fontWeight: FontWeight.w400,
+                    shadows: clockShadow,
+                  ),
+                ),
+        ),
 
         // Tappable alarm row — opens the half-height picker.
         if (!alarmFired) ...[
@@ -701,7 +709,7 @@ class _ClockFace extends StatelessWidget {
                   const SizedBox(width: 8),
                   Text(
                     alarmTime == null
-                        ? 'Set alarm'
+                        ? t.setAlarm
                         : _formatTime(alarmTime!, use24Hour),
                     style: TextStyle(
                       color: clockInk.withValues(alpha: 0.95),
@@ -722,13 +730,13 @@ class _ClockFace extends StatelessWidget {
 
         Padding(
           padding: const EdgeInsets.fromLTRB(32, 0, 32, 44),
-          child: _isFiring ? _firingButtons() : _stopButton(),
+          child: _isFiring ? _firingButtons(t) : _stopButton(t),
         ),
       ],
     );
   }
 
-  Widget _stopButton() {
+  Widget _stopButton(AppLocalizations t) {
     return Center(
       child: GestureDetector(
         onTap: onStop,
@@ -742,7 +750,7 @@ class _ClockFace extends StatelessWidget {
                 color: buttonInk.withValues(alpha: 0.45), width: 1.4),
           ),
           child: Text(
-            'Stop',
+            t.stop,
             style: TextStyle(
               color: buttonInk,
               fontSize: 17,
@@ -758,7 +766,7 @@ class _ClockFace extends StatelessWidget {
 
   /// Dismiss is solid so it's unmistakable at 6 AM; Snooze is the quieter
   /// outline above it.
-  Widget _firingButtons() {
+  Widget _firingButtons(AppLocalizations t) {
     final onSolid =
         buttonInk == Colors.white ? const Color(0xFF12212E) : Colors.white;
 
@@ -771,7 +779,8 @@ class _ClockFace extends StatelessWidget {
             behavior: HitTestBehavior.opaque,
             child: Container(
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 14),
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 16, vertical: 14),
               decoration: BoxDecoration(
                 color: buttonInk.withValues(alpha: 0.14),
                 borderRadius: BorderRadius.circular(16),
@@ -780,7 +789,8 @@ class _ClockFace extends StatelessWidget {
               ),
               child: Center(
                 child: Text(
-                  'Snooze ${firingAlarm!.snoozeDurationMinutes} min',
+                  t.snoozeFor(firingAlarm!.snoozeDurationMinutes),
+                  textAlign: TextAlign.center,
                   style: TextStyle(
                     color: buttonInk,
                     fontSize: 16,
@@ -798,7 +808,8 @@ class _ClockFace extends StatelessWidget {
           behavior: HitTestBehavior.opaque,
           child: Container(
             width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 18),
+            padding: const EdgeInsets.symmetric(
+                horizontal: 16, vertical: 18),
             decoration: BoxDecoration(
               color: buttonInk,
               borderRadius: BorderRadius.circular(16),
@@ -812,7 +823,8 @@ class _ClockFace extends StatelessWidget {
             ),
             child: Center(
               child: Text(
-                'Dismiss',
+                t.dismiss,
+                textAlign: TextAlign.center,
                 style: TextStyle(
                   color: onSolid,
                   fontSize: 19,
@@ -897,16 +909,15 @@ class _AlarmTimeSheetState extends State<_AlarmTimeSheet> {
     return t;
   }
 
-  String get _durationHint {
+  String _durationHint(AppLocalizations t) {
     final d = _result.difference(DateTime.now());
-    final h = d.inHours;
-    final m = d.inMinutes % 60;
-    return '$h h ${m.toString().padLeft(2, '0')} min from now';
+    return t.fromNow(d.inHours, (d.inMinutes % 60).toString().padLeft(2, '0'));
   }
 
   @override
   Widget build(BuildContext context) {
     final c = widget.settings.colors;
+    final t = AppLocalizations.of(context);
 
     return Container(
       height: MediaQuery.of(context).size.height * 0.5,
@@ -935,21 +946,28 @@ class _AlarmTimeSheetState extends State<_AlarmTimeSheet> {
                   GestureDetector(
                     onTap: () => Navigator.pop(context),
                     behavior: HitTestBehavior.opaque,
-                    child: Text('Cancel',
+                    child: Text(t.cancel,
                         style: TextStyle(
                             color: c.subtext,
                             fontSize: 16,
                             fontWeight: FontWeight.w400)),
                   ),
-                  Text('Wake up at',
-                      style: TextStyle(
-                          color: c.text,
-                          fontSize: 17,
-                          fontWeight: FontWeight.w600)),
+                  Flexible(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      child: Text(t.wakeUpAt,
+                          textAlign: TextAlign.center,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              color: c.text,
+                              fontSize: 17,
+                              fontWeight: FontWeight.w600)),
+                    ),
+                  ),
                   GestureDetector(
                     onTap: () => Navigator.pop(context, _result),
                     behavior: HitTestBehavior.opaque,
-                    child: Text('Done',
+                    child: Text(t.done,
                         style: TextStyle(
                             color: c.accent,
                             fontSize: 16,
@@ -1003,8 +1021,9 @@ class _AlarmTimeSheetState extends State<_AlarmTimeSheet> {
             ),
 
             Padding(
-              padding: const EdgeInsets.only(bottom: 18),
-              child: Text(_durationHint,
+              padding: const EdgeInsets.fromLTRB(24, 0, 24, 18),
+              child: Text(_durationHint(t),
+                  textAlign: TextAlign.center,
                   style: TextStyle(color: c.subtext, fontSize: 13)),
             ),
           ],
@@ -1095,17 +1114,11 @@ String _formatTime(DateTime t, bool use24Hour) {
   return '$h:${t.minute.toString().padLeft(2, '0')} $suffix';
 }
 
-String _dateLine(DateTime t) {
-  const days = [
-    'Monday', 'Tuesday', 'Wednesday', 'Thursday',
-    'Friday', 'Saturday', 'Sunday'
-  ];
-  const months = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'
-  ];
-  return '${days[t.weekday - 1]}, ${months[t.month - 1]} ${t.day}';
-}
+/// Weekday and date in the app's language. DateFormat handles the translated
+/// names and the word order, which differs by language — "Monday, September 25"
+/// but "lundi 25 septembre" and "25. September, Montag".
+String _dateLine(DateTime t, String locale) =>
+    DateFormat.MMMMEEEEd(locale).format(t);
 
 // ─── Star field ──────────────────────────────────────────────────────────────
 

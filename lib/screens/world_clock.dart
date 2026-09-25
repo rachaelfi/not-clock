@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
+import 'package:intl/intl.dart';
+import 'package:not_clock/l10n/app_localizations.dart';
 import 'package:not_clock/main.dart';
 import 'package:not_clock/models/app_settings.dart';
 import 'package:not_clock/models/world_clock_city.dart';
@@ -170,17 +172,12 @@ class _WorldClockScreenState extends State<WorldClockScreen> {
     return settings.formatTime(now.hour, now.minute);
   }
 
-  String get _localDateString {
-    final now = DateTime.now();
-    const months = [
-      'January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December'
-    ];
-    const days = [
-      'Monday', 'Tuesday', 'Wednesday', 'Thursday',
-      'Friday', 'Saturday', 'Sunday'
-    ];
-    return '${days[now.weekday - 1]}, ${months[now.month - 1]} ${now.day}';
+  /// Weekday and date in the app's language. DateFormat handles both the
+  /// translated names and the word order, which differs by language —
+  /// "Monday, September 25" but "lunes, 25 de septiembre".
+  String _localDateString(BuildContext context) {
+    final locale = Localizations.localeOf(context).toLanguageTag();
+    return DateFormat.MMMMEEEEd(locale).format(DateTime.now());
   }
 
   void _addClock() async {
@@ -222,6 +219,7 @@ class _WorldClockScreenState extends State<WorldClockScreen> {
   Widget build(BuildContext context) {
     final settings = SettingsProvider.of(context);
     final c = settings.colors;
+    final t = AppLocalizations.of(context);
 
     return SafeArea(
       child: Padding(
@@ -232,9 +230,11 @@ class _WorldClockScreenState extends State<WorldClockScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('World Clock',
-                    style: TextStyle(color: c.text, fontSize: 32,
-                        fontWeight: FontWeight.w700)),
+                Expanded(
+                  child: Text(t.worldClockTitle,
+                      style: TextStyle(color: c.text, fontSize: 32,
+                          fontWeight: FontWeight.w700)),
+                ),
                 Row(
                   children: [
                     if (_addedClocks.isNotEmpty)
@@ -248,7 +248,7 @@ class _WorldClockScreenState extends State<WorldClockScreen> {
                                 : c.accentWash(0.15),
                             borderRadius: BorderRadius.circular(10),
                           ),
-                          child: Text(_isEditing ? 'Done' : 'Edit',
+                          child: Text(_isEditing ? t.done : t.edit,
                               style: TextStyle(color: c.accentSoft,
                                   fontSize: 14, fontWeight: FontWeight.w500)),
                         ),
@@ -273,12 +273,12 @@ class _WorldClockScreenState extends State<WorldClockScreen> {
               ],
             ),
             const SizedBox(height: 28),
-            _buildLocalTimeSection(settings, c),
+            _buildLocalTimeSection(settings, c, t),
             const SizedBox(height: 24),
             Expanded(
               child: _addedClocks.isEmpty
-                  ? _buildEmptyState(c)
-                  : _buildClocksList(settings, c),
+                  ? _buildEmptyState(c, t)
+                  : _buildClocksList(settings, c, t),
             ),
           ],
         ),
@@ -286,7 +286,8 @@ class _WorldClockScreenState extends State<WorldClockScreen> {
     );
   }
 
-  Widget _buildLocalTimeSection(AppSettings settings, AppColors c) {
+  Widget _buildLocalTimeSection(
+      AppSettings settings, AppColors c, AppLocalizations t) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 24),
@@ -305,7 +306,7 @@ class _WorldClockScreenState extends State<WorldClockScreen> {
             children: [
               Icon(Icons.my_location, color: c.accentSoft, size: 14),
               const SizedBox(width: 6),
-              Text('MY LOCATION',
+              Text(t.myLocation,
                   style: TextStyle(color: c.subtext, fontSize: 11,
                       fontWeight: FontWeight.w500, letterSpacing: 1.5)),
               if (_localAbbreviation.isNotEmpty) ...[
@@ -329,7 +330,7 @@ class _WorldClockScreenState extends State<WorldClockScreen> {
                     color: c.warning.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(4),
                   ),
-                  child: Text('DST',
+                  child: Text(t.dst,
                       style: TextStyle(color: c.warning, fontSize: 10,
                           fontWeight: FontWeight.w600)),
                 ),
@@ -350,7 +351,7 @@ class _WorldClockScreenState extends State<WorldClockScreen> {
               style: TextStyle(color: c.accentSoft, fontSize: 16,
                   fontWeight: FontWeight.w400)),
           const SizedBox(height: 4),
-          Text(_localDateString,
+          Text(_localDateString(context),
               style: TextStyle(color: c.subtext, fontSize: 13,
                   fontWeight: FontWeight.w400)),
         ],
@@ -358,31 +359,32 @@ class _WorldClockScreenState extends State<WorldClockScreen> {
     );
   }
 
-  Widget _buildEmptyState(AppColors c) {
+  Widget _buildEmptyState(AppColors c, AppLocalizations t) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(Icons.language, size: 48, color: c.muted),
           const SizedBox(height: 12),
-          Text('Tap + to add a city',
+          Text(t.addCityHint,
               style: TextStyle(color: c.subtext, fontSize: 15)),
         ],
       ),
     );
   }
 
-  Widget _buildClocksList(AppSettings settings, AppColors c) {
+  Widget _buildClocksList(
+      AppSettings settings, AppColors c, AppLocalizations t) {
     return ListView.separated(
       itemCount: _addedClocks.length,
       separatorBuilder: (_, __) => const SizedBox(height: 10),
       itemBuilder: (context, index) =>
-          _buildClockCard(_addedClocks[index], index, settings, c),
+          _buildClockCard(_addedClocks[index], index, settings, c, t),
     );
   }
 
-  Widget _buildClockCard(
-      WorldClockCity city, int index, AppSettings settings, AppColors c) {
+  Widget _buildClockCard(WorldClockCity city, int index, AppSettings settings,
+      AppColors c, AppLocalizations t) {
     final offsetStr = city.offsetStringFrom(_localOffsetMinutes);
 
     return Container(
@@ -423,7 +425,7 @@ class _WorldClockScreenState extends State<WorldClockScreen> {
                           color: c.warning.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(3),
                         ),
-                        child: Text('DST',
+                        child: Text(t.dst,
                             style: TextStyle(color: c.warning, fontSize: 9,
                                 fontWeight: FontWeight.w600)),
                       ),
@@ -462,7 +464,7 @@ class _WorldClockScreenState extends State<WorldClockScreen> {
                     size: 12,
                   ),
                   const SizedBox(width: 4),
-                  Text(city.isDaytime ? 'Day' : 'Night',
+                  Text(city.isDaytime ? t.daytime : t.nighttime,
                       style: TextStyle(
                         color: city.isDaytime
                             ? c.warning.withValues(alpha: 0.7)
