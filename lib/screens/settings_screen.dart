@@ -87,8 +87,9 @@ class SettingsScreen extends StatelessWidget {
                       const SizedBox(height: 10),
                       _Note(
                         colors: c,
-                        text: 'The sky changes with the clock: stars from 7 PM, '
-                            'sunrise from 4 AM, daylight from 6 AM.',
+                        text: 'A starry sky while you sleep. When the alarm '
+                            'goes off it becomes sunrise, daylight, or stars '
+                            'depending on the time.',
                       ),
 
                       const SizedBox(height: 28),
@@ -98,8 +99,8 @@ class SettingsScreen extends StatelessWidget {
                           colors: c,
                           icon: Icons.mail_outline_rounded,
                           title: 'Send feedback',
-                          onTap: (rowContext) =>
-                              _todo(rowContext, c, 'Send feedback'),
+                          subtitle: 'Opens your mail app',
+                          onTap: AppLinksService.sendFeedback,
                         ),
                         _Divider(colors: c),
                         _NavRow(
@@ -154,17 +155,6 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
-  void _todo(BuildContext context, AppColors c, String what) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(
-        content: Text('$what is not wired up yet.',
-            style: TextStyle(color: c.text)),
-        backgroundColor: c.card,
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 2),
-      ));
-  }
 }
 
 // ─── Route transition shared by the sub-screens ──────────────────────────────

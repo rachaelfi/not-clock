@@ -19,7 +19,7 @@ class AppConfig {
   /// Optional landing page. If you have one, it's the better thing to share:
   /// a single link that works for whoever receives it, iPhone or Android.
   /// Leave empty to share the platform-specific store URL instead.
-  static const String websiteUrl = '';
+  static const String websiteUrl = 'https://rachaelfi.github.io/not-clock-site/';
 
   static const String appName = 'Not Clock';
 
@@ -44,13 +44,20 @@ class AppConfig {
       'dims to a starry sky, then greets you with sunrise or daylight when '
       "it's time to get up.";
 
+
+  /// Where feedback emails go. A personal address is fine to start —
+  /// swap it for support@yourdomain once you have one.
+  static const String supportEmail = 'fisherra3119@gmail.com';
+
+  static const String feedbackSubject = 'Not Clock Feedback';
+
   // ─── Legal ─────────────────────────────────────────────────────────────────
   //
   // Both stores require a privacy policy URL on the listing itself, even for
   // apps that collect nothing. Linking it from About as well is the norm.
 
-  static const String privacyPolicyUrl = '';
-  static const String termsUrl = '';
+  static const String privacyPolicyUrl = 'https://rachaelfi.github.io/not-clock-site/privacy.html';
+  static const String termsUrl = 'https://rachaelfi.github.io/not-clock-site/terms.html';
 
   /// Shown as the email subject when someone shares to Mail.
   static const String shareSubject = 'Not Clock';

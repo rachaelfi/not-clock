@@ -28,11 +28,13 @@ import 'package:not_clock/models/app_settings.dart';
 
 enum SkyPhase { night, sunrise, day }
 
+/// Which sky the clock time alone implies. Only consulted once the alarm has
+/// fired — before that the screen is always night. See [_NightClockScreenState._phase].
 SkyPhase skyPhaseFor(DateTime t) {
   final h = t.hour;
-  if (h >= 19 || h < 4) return SkyPhase.night;
-  if (h < 6) return SkyPhase.sunrise;
-  return SkyPhase.day;
+  if (h >= 19 || h < 4) return SkyPhase.night; // 7 PM – 3:59 AM
+  if (h < 8) return SkyPhase.sunrise;          // 4 AM – 7:59 AM
+  return SkyPhase.day;                         // 8 AM – 6:59 PM
 }
 
 const _skyGradients = <SkyPhase, List<Color>>{
@@ -126,6 +128,11 @@ class _NightClockScreenState extends State<NightClockScreen>
   _ShootingStar? _shot;
 
   static const _dimAfter = Duration(seconds: 12);
+    /// Stars until the alarm goes off, whatever the hour — you set a sleep alarm
+  /// to go to sleep, so a bright blue sky would be wrong even at 2 PM. Once it
+  /// fires, the sky switches to whatever the actual time calls for: sunrise if
+  /// you're up at 5 AM, daylight at 9, stars again for a late-evening alarm.
+  SkyPhase get _phase => _alarmFired ? skyPhaseFor(_now) : SkyPhase.night;
 
   // Where the clock block and the Stop button sit vertically, used to sample
   // the sky for contrast.
@@ -222,7 +229,7 @@ class _NightClockScreenState extends State<NightClockScreen>
     final delay = Duration(milliseconds: 9000 + _rng.nextInt(13000));
     _shootingScheduler = Timer(delay, () {
       if (!mounted) return;
-      if (skyPhaseFor(_now) == SkyPhase.night) {
+      if (_phase == SkyPhase.night) {
         setState(() => _shot = _ShootingStar.random(_rng));
         _shooting.forward(from: 0);
       }
@@ -259,7 +266,7 @@ class _NightClockScreenState extends State<NightClockScreen>
 
   @override
   Widget build(BuildContext context) {
-    final phase = skyPhaseFor(_now);
+    final phase = _phase;
     final size = MediaQuery.sizeOf(context);
 
     final clockInk = _inkOn(_skyColorAt(phase, _clockDepth));
