@@ -25,16 +25,20 @@ import 'package:not_clock/services/brightness_service.dart';
 //
 //  If the sunrise simulator is on, the last 5–30 minutes before the alarm
 //  override all of that: the screen walks through the chosen colour preset and
-//  ramps the backlight from near-dark to full, hitting white as the alarm
-//  sounds.
+//  ramps the backlight up to full, hitting white as the alarm sounds.
 //
 //  This screen also opens for the sunrise alone, with the Night Clock setting
-//  off. Then [showStars] is false and the pending sky stays plain black —
-//  there's no starfield to look at, only the light that arrives at the end.
+//  off — but in that case the sleep screen doesn't open it until the wake-up
+//  window actually starts. Then [showStars] is false and the pending sky stays
+//  plain black, so it's only ever on screen while the light is building.
 //
 //  When the sleep alarm fires, this screen presents it in place, with Snooze
 //  and Dismiss. The scheduler is told to skip its own firing screen, which
 //  would otherwise cover the sky the whole night was building towards.
+//
+//  Brightness: this screen owns the backlight from the moment it opens. It
+//  takes it down to a low level so someone who went to bed at 100% isn't lit
+//  up all night, and so the sunrise has somewhere to climb from.
 // ─────────────────────────────────────────────────────────────────────────────
 
 enum SkyPhase { night, sunrise, day }
@@ -157,6 +161,13 @@ class _NightClockScreenState extends State<NightClockScreen>
 
   static const _dimAfter = Duration(seconds: 12);
 
+  /// Backlight while you're lying in the dark. Low enough not to light the
+  /// room, high enough that the faint clock stays visible.
+  static const _sleepBrightness = 0.04;
+
+  /// After a tap — enough to read the clock without being a flashlight.
+  static const _awakeBrightness = 0.35;
+
   // Where the clock block and the buttons sit vertically, used to sample the
   // sky for contrast.
   static const _clockDepth = 0.34;
@@ -207,11 +218,17 @@ class _NightClockScreenState extends State<NightClockScreen>
 
   /// Backlight level for the current point in the sunrise.
   ///
+  /// Starts from [_sleepBrightness] rather than zero, because that's where the
+  /// screen already is by the time the window begins — ramping from 0 would
+  /// mean a visible drop at the exact moment the light is supposed to start
+  /// growing.
+  ///
   /// Eased rather than linear: a straight ramp spends too long at a level
   /// that's already bright enough to wake you early. easeInCubic keeps it dim
   /// for most of the window and does the real work near the end.
   double _brightnessFor(double progress) =>
-      0.02 + 0.98 * Curves.easeInCubic.transform(progress);
+      _sleepBrightness +
+      (1.0 - _sleepBrightness) * Curves.easeInCubic.transform(progress);
 
   @override
   void initState() {
@@ -249,6 +266,17 @@ class _NightClockScreenState extends State<NightClockScreen>
     _scheduleShootingStar();
     _restartDimTimer();
 
+    // Take the backlight down straight away. Without this, someone who went to
+    // bed at full brightness gets a blazing screen all night — and then a
+    // jarring drop the moment the sunrise starts from its low floor.
+    //
+    // Opening directly into the sunrise window (sunrise-only mode) starts at
+    // the ramp's own level instead, so there's no step either way.
+    final startProgress = _sunriseProgress;
+    BrightnessService.set(startProgress != null
+        ? _brightnessFor(startProgress)
+        : _awakeBrightness);
+
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
     // If you add `wakelock_plus` to pubspec, keep the display on here:
     //   WakelockPlus.enable();
@@ -269,7 +297,7 @@ class _NightClockScreenState extends State<NightClockScreen>
     _shooting.dispose();
     _drift.dispose();
     // Always hand the backlight back, or the phone stays at whatever level
-    // the sunrise left it on.
+    // this screen left it on.
     BrightnessService.restore();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     // WakelockPlus.disable();
@@ -288,7 +316,7 @@ class _NightClockScreenState extends State<NightClockScreen>
       _dimmed = false;
     });
     _dimTimer?.cancel();
-    BrightnessService.restore();
+    BrightnessService.set(1.0);
 
     // Matches AudioService's own three-minute cutoff, so the buttons don't
     // sit there forever after the sound has given up.
@@ -336,6 +364,9 @@ class _NightClockScreenState extends State<NightClockScreen>
       _alarmFired = false;
     });
 
+    // Back down to reading level; the dim timer takes it lower from there.
+    BrightnessService.set(_awakeBrightness);
+
     widget.onAlarmChanged?.call(next);
     _restartDimTimer();
   }
@@ -363,7 +394,9 @@ class _NightClockScreenState extends State<NightClockScreen>
       if (_dimmed) setState(() => _dimmed = false);
       BrightnessService.set(_brightnessFor(p));
     } else if (_alarmFired) {
-      BrightnessService.restore();
+      // Full brightness for the morning sky. Handing control back to the
+      // system here would instead leave it at the 4% the night ended on.
+      BrightnessService.set(1.0);
     }
   }
 
@@ -372,12 +405,18 @@ class _NightClockScreenState extends State<NightClockScreen>
     // Never dim mid-sunrise — the whole point is the screen getting brighter.
     if (_alarmFired || _sunriseActive) return;
     _dimTimer = Timer(_dimAfter, () {
-      if (mounted) setState(() => _dimmed = true);
+      if (!mounted) return;
+      setState(() => _dimmed = true);
+      BrightnessService.set(_sleepBrightness);
     });
   }
 
   void _wake() {
     if (_dimmed) setState(() => _dimmed = false);
+    // The sunrise owns the backlight while it's running — don't fight it.
+    if (!_sunriseActive && !_alarmFired) {
+      BrightnessService.set(_awakeBrightness);
+    }
     _restartDimTimer();
   }
 
@@ -1350,7 +1389,8 @@ class _DaytimePainter extends CustomPainter {
 /// Opens the night clock full-screen. Returns when the user taps Stop.
 ///
 /// Pass `showStars: false` when it's open only to run the sunrise — the Night
-/// Clock setting is off but the sunrise simulator is on.
+/// Clock setting is off but the sunrise simulator is on. In that case the
+/// sleep screen delays this call until the wake-up window begins.
 Future<void> openNightClock(
   BuildContext context, {
   DateTime? alarmTime,

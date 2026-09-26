@@ -38,6 +38,10 @@ class _SleepScreenState extends State<SleepScreen>
 
   Timer? _updateTimer;
 
+  /// Sunrise-only mode: fires when the wake-up window begins and opens the
+  /// night clock then, rather than leaving it on screen all night.
+  Timer? _sunriseLaunchTimer;
+
   int get _hour24 {
     int h = _selectedHour;
     if (_isAM && _selectedHour == 12) h = 0;
@@ -92,6 +96,7 @@ class _SleepScreenState extends State<SleepScreen>
     _amPmController.dispose();
     _glowController.dispose();
     _updateTimer?.cancel();
+    _sunriseLaunchTimer?.cancel();
     super.dispose();
   }
 
@@ -154,6 +159,86 @@ class _SleepScreenState extends State<SleepScreen>
     AlarmScheduler.onSleepAlarmDismissed = null;
   }
 
+  // ─── Night clock / sunrise launching ───────────────────────────────────────
+
+  void _cancelSunriseLaunch() {
+    _sunriseLaunchTimer?.cancel();
+    _sunriseLaunchTimer = null;
+  }
+
+  void _openNightClockNow({required bool showStars}) {
+    if (!mounted) return;
+    openNightClock(
+      context,
+      alarmTime: _nextAlarmDateTime,
+      onStop: _onNightClockStop,
+      onAlarmChanged: _onNightClockAlarmChanged,
+      showStars: showStars,
+    );
+  }
+
+  /// Whatever the two sleep settings call for, once an alarm has been armed.
+  ///
+  /// Shared by the Set Sleep Alarm button and the quick-sleep buttons: both
+  /// arm the same alarm, so they should behave the same way.
+  void _launchSleepScreens() {
+    final s = SettingsProvider.read(context);
+    if (s.nightClockEnabled) {
+      // Night Clock takes the screen for the whole night, sunrise or not.
+      _openNightClockNow(showStars: true);
+    } else if (s.sunriseEnabled) {
+      // Sunrise only — hold off until the window actually begins.
+      _scheduleSunriseLaunch();
+    }
+  }
+
+  /// Sunrise without the Night Clock: there's nothing worth showing until the
+  /// light starts, so wait for the window to begin rather than sitting on a
+  /// black screen for eight hours.
+  ///
+  /// The app has to stay in the foreground for this to fire — same constraint
+  /// as the sunrise itself, which can't drive the backlight from the
+  /// background either.
+  void _scheduleSunriseLaunch() {
+    _cancelSunriseLaunch();
+
+    final settings = SettingsProvider.read(context);
+    final windowStart = _nextAlarmDateTime
+        .subtract(Duration(minutes: settings.sunriseWindowMinutes));
+    final delay = windowStart.difference(DateTime.now());
+
+    // Alarm set inside its own window — the sunrise is already due.
+    if (delay.inMilliseconds <= 0) {
+      _openNightClockNow(showStars: false);
+      return;
+    }
+
+    _sunriseLaunchTimer = Timer(delay, () {
+      // Cancelled, dismissed, or the screen went away while we waited.
+      if (!mounted || !_alarmIsSet) return;
+      _openNightClockNow(showStars: false);
+    });
+  }
+
+  /// Stop on the night clock cancels the sleep alarm too.
+  void _onNightClockStop() {
+    _cancelSunriseLaunch();
+    _unregisterSleepAlarm();
+    if (mounted) setState(() => _alarmIsSet = false);
+  }
+
+  /// The user picked a new time from inside the night clock, or snoozed.
+  void _onNightClockAlarmChanged(DateTime newTime) {
+    if (!mounted) return;
+    setState(() {
+      _setFromHour24(newTime.hour);
+      _selectedMinute = (newTime.minute ~/ 5).clamp(0, 11);
+      _alarmIsSet = true;
+    });
+    _syncWheels(animate: false); // the screen is behind the night clock
+    _registerSleepAlarm();
+  }
+
   /// Move the three wheels to match the current values.
   void _syncWheels({bool animate = true}) {
     final is24h = SettingsProvider.read(context).use24HourFormat;
@@ -174,24 +259,6 @@ class _SleepScreenState extends State<SleepScreen>
     if (!is24h) go(_amPmController, _isAM ? 0 : 1);
   }
 
-  /// Stop on the night clock cancels the sleep alarm too.
-  void _onNightClockStop() {
-    _unregisterSleepAlarm();
-    if (mounted) setState(() => _alarmIsSet = false);
-  }
-
-  /// The user picked a new time from inside the night clock.
-  void _onNightClockAlarmChanged(DateTime newTime) {
-    if (!mounted) return;
-    setState(() {
-      _setFromHour24(newTime.hour);
-      _selectedMinute = (newTime.minute ~/ 5).clamp(0, 11);
-      _alarmIsSet = true;
-    });
-    _syncWheels(animate: false); // the screen is behind the night clock
-    _registerSleepAlarm();
-  }
-
   void _setQuickSleepAlarm(double hours) {
     final now = DateTime.now();
     final alarmTime = now.add(Duration(minutes: (hours * 60).round()));
@@ -207,6 +274,9 @@ class _SleepScreenState extends State<SleepScreen>
     _syncWheels();
 
     _registerSleepAlarm();
+    // Same as the Set Sleep Alarm button: a quick button arms the same alarm,
+    // so it gets the Night Clock and the sunrise too.
+    _launchSleepScreens();
   }
 
   void _toggleAlarm() {
@@ -216,21 +286,9 @@ class _SleepScreenState extends State<SleepScreen>
 
     if (_alarmIsSet) {
       _registerSleepAlarm();
-
-      // Take over the screen if either feature needs it: the Night Clock for
-      // the whole night, or the sunrise, which needs a visible screen to
-      // brighten.
-      final s = SettingsProvider.read(context);
-      if (s.nightClockEnabled || s.sunriseEnabled) {
-        openNightClock(
-          context,
-          alarmTime: _nextAlarmDateTime,
-          onStop: _onNightClockStop,
-          onAlarmChanged: _onNightClockAlarmChanged,
-          showStars: s.nightClockEnabled,
-        );
-      }
+      _launchSleepScreens();
     } else {
+      _cancelSunriseLaunch();
       _unregisterSleepAlarm();
     }
   }
@@ -269,9 +327,11 @@ class _SleepScreenState extends State<SleepScreen>
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(t.sleepTitle,
-                    style: TextStyle(color: c.text, fontSize: 32,
-                        fontWeight: FontWeight.w700, letterSpacing: -0.5)),
+                Expanded(
+                  child: Text(t.sleepTitle,
+                      style: TextStyle(color: c.text, fontSize: 32,
+                          fontWeight: FontWeight.w700, letterSpacing: -0.5)),
+                ),
                 const SettingsGearButton(),
               ],
             ),
@@ -311,16 +371,20 @@ class _SleepScreenState extends State<SleepScreen>
                               color: _alarmIsSet ? c.accentSoft : c.muted,
                               size: 18),
                           const SizedBox(width: 8),
-                          Text(t.sleepDurationLabel,
-                              style: TextStyle(
-                                color: _alarmIsSet ? c.subtext : c.muted,
-                                fontSize: 13, fontWeight: FontWeight.w400,
-                                letterSpacing: 1.5,
-                              )),
+                          Flexible(
+                            child: Text(t.sleepDurationLabel,
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: _alarmIsSet ? c.subtext : c.muted,
+                                  fontSize: 13, fontWeight: FontWeight.w400,
+                                  letterSpacing: 1.5,
+                                )),
+                          ),
                         ],
                       ),
                       const SizedBox(height: 8),
                       Text(_formatSleepDuration(t),
+                          textAlign: TextAlign.center,
                           style: TextStyle(
                             color: _alarmIsSet ? c.text : c.subtext,
                             fontSize: 28, fontWeight: FontWeight.w300,
@@ -362,6 +426,7 @@ class _SleepScreenState extends State<SleepScreen>
                     _selectedSound == 'None'
                         ? t.noSound
                         : soundDisplayName(_selectedSound),
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(color: c.subtext, fontSize: 13),
                   ),
                 ),
@@ -535,9 +600,8 @@ class _SleepScreenState extends State<SleepScreen>
         childDelegate: ListWheelChildBuilderDelegate(
           builder: (context, index) {
           if (index < 0 || index > 1) return null;
-          // AM/PM stay as-is: Spanish uses "a. m." / "p. m." in prose, but
-          // these are picker labels sitting beside digits, where the short
-          // Latin forms are what people expect.
+          // Picker labels beside digits — the short Latin forms are what
+          // people expect in every language here.
           final label = index == 0 ? 'AM' : 'PM';
           final isSelected = (index == 0) == _isAM;
           return Center(child: Text(label,
@@ -561,7 +625,7 @@ class _SleepScreenState extends State<SleepScreen>
                 fontWeight: FontWeight.w500, letterSpacing: 1.2)),
         const SizedBox(height: 10),
         // "6h", "7.5h" and so on are left untranslated — they're numeric
-        // shorthand that reads the same in both languages.
+        // shorthand that reads the same in every language here.
         Row(
           children: [
             _quickButton(c, '6h', 6), const SizedBox(width: 10),
@@ -600,7 +664,7 @@ class _SleepScreenState extends State<SleepScreen>
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 300),
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 18),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
           gradient: _alarmIsSet
