@@ -3,8 +3,8 @@ import 'package:not_clock/l10n/app_localizations.dart';
 import 'package:not_clock/main.dart';
 import 'package:not_clock/models/alarm_data.dart';
 import 'package:not_clock/screens/alarm_edit_screen.dart';
+import 'package:not_clock/services/alarm_scheduler.dart';
 import 'package:not_clock/services/storage_service.dart';
-import 'package:not_clock/theme/app_theme.dart';
 
 class AlarmsScreen extends StatefulWidget {
   const AlarmsScreen({super.key});
@@ -27,19 +27,32 @@ class _AlarmsScreenState extends State<AlarmsScreen> {
   /// Load alarms from disk. Each alarm was saved as a JSON map.
   Future<void> _loadAlarms() async {
     final saved = await StorageService.loadAlarms();
-    if (saved.isNotEmpty) {
-      setState(() {
-        _alarms.addAll(saved.map((json) => AlarmData.fromJson(json)));
-      });
-    }
+    if (saved.isEmpty) return;
+
+    final loaded = saved.map((json) => AlarmData.fromJson(json)).toList();
+
+    // Alarms saved before ids existed get one assigned during fromJson. Write
+    // the list straight back so those ids stick — the OS scheduler keys every
+    // alarm by id, and a fresh one each launch would orphan what it scheduled.
+    final needsIdBackfill = saved.any((json) => json['id'] == null);
+
+    if (!mounted) return;
+    setState(() => _alarms.addAll(loaded));
+
+    if (needsIdBackfill) await _persistAndSync();
   }
 
-  /// Save the current alarm list to disk.
-  /// Called after every add, edit, delete, or toggle.
-  Future<void> _saveAlarms() async {
+  /// Save the current alarm list to disk, then hand it to the OS scheduler.
+  ///
+  /// Call this after every add, edit, delete, or toggle. `syncAll` diffs
+  /// against what's already scheduled, so it cancels alarms that are gone,
+  /// reschedules ones whose time moved, and leaves everything else alone —
+  /// including a snooze that's currently counting down.
+  Future<void> _persistAndSync() async {
     await StorageService.saveAlarms(
       _alarms.map((a) => a.toJson()).toList(),
     );
+    await AlarmScheduler.syncAll();
   }
 
   void _showTimeUntilSnackbar(AlarmData alarm) {
@@ -70,7 +83,8 @@ class _AlarmsScreenState extends State<AlarmsScreen> {
   }
 
   void _sortAlarms() {
-    _alarms.sort((a, b) => a.hour24 * 60 + a.minute - (b.hour24 * 60 + b.minute));
+    _alarms
+        .sort((a, b) => a.hour24 * 60 + a.minute - (b.hour24 * 60 + b.minute));
   }
 
   void _addAlarm() async {
@@ -84,23 +98,26 @@ class _AlarmsScreenState extends State<AlarmsScreen> {
 
     final result = await Navigator.push<AlarmData>(
       context,
-      _buildSlideRoute<AlarmData>(AlarmEditScreen(alarm: newAlarm, isNew: true)),
+      _buildSlideRoute<AlarmData>(
+          AlarmEditScreen(alarm: newAlarm, isNew: true)),
     );
 
-    if (result != null) {
-      setState(() {
-        _alarms.add(result);
-        _sortAlarms();
-      });
-      _saveAlarms(); // Persist to disk
-      if (mounted) _showTimeUntilSnackbar(result);
-    }
+    if (result == null) return;
+
+    setState(() {
+      _alarms.add(result);
+      _sortAlarms();
+    });
+    await _persistAndSync();
+    if (mounted) _showTimeUntilSnackbar(result);
   }
 
   void _editAlarm(int index) async {
     final alarm = _alarms[index];
     final result = await Navigator.push<dynamic>(
       context,
+      // copy() keeps the id, so an edited alarm replaces its own scheduled
+      // slots instead of leaving a second alarm behind at the old time.
       _buildSlideRoute(AlarmEditScreen(alarm: alarm.copy(), isNew: false)),
     );
 
@@ -114,7 +131,7 @@ class _AlarmsScreenState extends State<AlarmsScreen> {
         _sortAlarms();
       }
     });
-    _saveAlarms(); // Persist to disk
+    await _persistAndSync();
   }
 
   PageRouteBuilder<T> _buildSlideRoute<T>(Widget page) {
@@ -212,9 +229,8 @@ class _AlarmsScreenState extends State<AlarmsScreen> {
                                         settings.formatTime(
                                             alarm.hour24, alarm.minute),
                                         style: TextStyle(
-                                          color: alarm.enabled
-                                              ? c.text
-                                              : c.muted,
+                                          color:
+                                              alarm.enabled ? c.text : c.muted,
                                           fontSize: 36,
                                           fontWeight: FontWeight.w300,
                                         ),
@@ -236,12 +252,12 @@ class _AlarmsScreenState extends State<AlarmsScreen> {
                                 // AppPalette.materialTheme.
                                 Switch(
                                   value: alarm.enabled,
-                                  onChanged: (val) {
-                                    setState(() {
-                                      alarm.enabled = val;
-                                    });
-                                    _saveAlarms(); // Persist toggle state
-                                    if (val) {
+                                  onChanged: (val) async {
+                                    setState(() => alarm.enabled = val);
+                                    // Toggling off cancels the OS alarm;
+                                    // toggling on schedules it again.
+                                    await _persistAndSync();
+                                    if (val && mounted) {
                                       _showTimeUntilSnackbar(alarm);
                                     }
                                   },

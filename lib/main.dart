@@ -11,8 +11,14 @@ import 'package:not_clock/services/alarm_scheduler.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:not_clock/l10n/app_localizations.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Hand every pending alarm to the OS before the first frame. This has to
+  // finish before runApp: if the phone cold-started *because* an alarm is
+  // ringing, the ring event is waiting for us and init() is what picks it up.
+  await AlarmScheduler.init(navigatorKey);
+
   runApp(const AlarmApp());
 }
 
@@ -35,14 +41,8 @@ class _AlarmAppState extends State<AlarmApp> {
     super.initState();
     // Load saved settings from disk when app starts
     _settings.loadFromDisk();
-    // Start the alarm scheduler — it checks every second if an alarm should fire
-    AlarmScheduler.start(navigatorKey);
-  }
-
-  @override
-  void dispose() {
-    AlarmScheduler.stop();
-    super.dispose();
+    // The alarm scheduler is already running — main() started it before the
+    // app was built, because alarms have to survive this widget being gone.
   }
 
   @override
@@ -65,12 +65,57 @@ class _AlarmAppState extends State<AlarmApp> {
             locale: _settings.locale,
             localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
+            builder: (context, child) =>
+                _NotificationStrings(child: child ?? const SizedBox.shrink()),
             home: const MainScreen(),
           );
         },
       ),
     );
   }
+}
+
+// ─── Keeps the lock-screen notification in the user's language ───────────────
+
+/// The alarm notification is built when an alarm is *scheduled*, not when it
+/// rings — so its text is baked in hours ahead of time, long before any
+/// BuildContext is around to read AppLocalizations. This widget copies the
+/// translated strings into the scheduler whenever the locale changes, then
+/// rewrites the already-scheduled notifications to match.
+class _NotificationStrings extends StatefulWidget {
+  final Widget child;
+  const _NotificationStrings({required this.child});
+
+  @override
+  State<_NotificationStrings> createState() => _NotificationStringsState();
+}
+
+class _NotificationStringsState extends State<_NotificationStrings> {
+  Locale? _lastLocale;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    final locale = Localizations.localeOf(context);
+    if (locale == _lastLocale) return;
+    _lastLocale = locale;
+
+    final t = AppLocalizations.of(context);
+
+    // NOTE: if your .arb files name these keys differently, swap them here —
+    // these are the same strings the in-app firing screen uses.
+    AlarmScheduler.notificationTitle = t.alarmDefaultLabel;
+    AlarmScheduler.notificationStopLabel = t.dismiss;
+    AlarmScheduler.notificationSnoozeLabel = t.snooze;
+
+    // Rewrite the pending notifications so a language change takes effect on
+    // alarms that were scheduled before it.
+    AlarmScheduler.syncAll();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }
 
 // ─── Inherited widget to provide AppSettings down the tree ────────────────────

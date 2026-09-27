@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:not_clock/l10n/app_localizations.dart';
 import 'package:not_clock/models/app_settings.dart';
 import 'package:not_clock/theme/app_theme.dart';
 import 'package:not_clock/screens/settings_screen.dart' show BackChip;
@@ -99,6 +100,7 @@ class AppIconScreen extends StatelessWidget {
       listenable: settings,
       builder: (context, _) {
         final c = settings.colors;
+        final t = AppLocalizations.of(context);
 
         return Scaffold(
           backgroundColor: c.background,
@@ -112,17 +114,23 @@ class AppIconScreen extends StatelessWidget {
                     children: [
                       BackChip(colors: c),
                       const SizedBox(width: 16),
-                      Text('App icon',
-                          style: TextStyle(
-                            color: c.text,
-                            fontSize: 26,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: -0.4,
-                          )),
+                      Expanded(
+                        child: Text(t.appIcon,
+                            style: TextStyle(
+                              color: c.text,
+                              fontSize: 26,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: -0.4,
+                            )),
+                      ),
                     ],
                   ),
                 ),
                 Expanded(
+                  // The footer note now scrolls with the grid instead of being
+                  // pinned below it. Pinned, it stole a fixed slice of height,
+                  // and on a short window the grid's own rows overflowed —
+                  // that was the px overflow on this screen.
                   child: GridView.builder(
                     padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
                     gridDelegate:
@@ -130,7 +138,10 @@ class AppIconScreen extends StatelessWidget {
                       crossAxisCount: 3,
                       mainAxisSpacing: 18,
                       crossAxisSpacing: 18,
-                      childAspectRatio: 0.82,
+                      // Tile = square icon + label. 0.82 left the label with
+                      // less room than it needed once the text wrapped, so the
+                      // Column inside each tile overflowed a few pixels.
+                      childAspectRatio: 0.74,
                     ),
                     itemCount: AppIconOption.all.length,
                     itemBuilder: (context, i) {
@@ -150,9 +161,7 @@ class AppIconScreen extends StatelessWidget {
                 Padding(
                   padding: const EdgeInsets.fromLTRB(24, 0, 24, 28),
                   child: Text(
-                    'Your pick is saved now. The home-screen icon changes once '
-                    'the alternate icons are added to the iOS and Android '
-                    'projects.',
+                    t.appIconNote,
                     style: TextStyle(color: c.muted, fontSize: 12, height: 1.4),
                   ),
                 ),
@@ -184,39 +193,52 @@ class _IconTile extends StatelessWidget {
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 180),
-            padding: const EdgeInsets.all(3),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(
-                color: selected ? colors.accent : Colors.transparent,
-                width: 2.5,
-              ),
-            ),
-            child: AspectRatio(
-              aspectRatio: 1,
-              child: Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [option.start, option.end],
-                  ),
-                  borderRadius: BorderRadius.circular(19),
+          // Flexible rather than a bare AspectRatio: if the tile ends up
+          // shorter than the square wants to be, the icon shrinks instead of
+          // the Column overflowing.
+          Flexible(
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              padding: const EdgeInsets.all(3),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(
+                  color: selected ? colors.accent : Colors.transparent,
+                  width: 2.5,
                 ),
-                child: Icon(Icons.access_time_rounded,
-                    color: option.glyph, size: 34),
+              ),
+              child: AspectRatio(
+                aspectRatio: 1,
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [option.start, option.end],
+                    ),
+                    borderRadius: BorderRadius.circular(19),
+                  ),
+                  child: Icon(Icons.access_time_rounded,
+                      color: option.glyph, size: 34),
+                ),
               ),
             ),
           ),
           const SizedBox(height: 8),
+          // Two lines, ellipsised. "Macchiato" at 12.5pt is already close to
+          // the column width on a narrow phone, and German and Korean labels
+          // for future icons could be longer still.
           Text(
             option.label,
+            textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
             style: TextStyle(
               color: selected ? colors.text : colors.subtext,
               fontSize: 12.5,
+              height: 1.2,
               fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
             ),
           ),

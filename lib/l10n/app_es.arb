@@ -8,6 +8,7 @@
 
   "themeAndColors": "Tema y colores",
   "appIcon": "Icono de la app",
+  "appIconNote": "El icono de tu pantalla de inicio se actualiza al instante. Algunos lanzadores tardan un momento en refrescarse.",
 
   "twentyFourHourTime": "Formato de 24 horas",
   "twentyFourHourOn": "Los relojes muestran 00–23",

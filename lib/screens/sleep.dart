@@ -87,6 +87,35 @@ class _SleepScreenState extends State<SleepScreen>
     _updateTimer = Timer.periodic(const Duration(seconds: 30), (_) {
       if (_alarmIsSet) setState(() {});
     });
+
+    // The alarm now lives in the OS, so it outlives this screen and the app
+    // itself. Pick up an alarm that was already armed — otherwise reopening
+    // the app shows "Set Sleep Alarm" while an alarm is genuinely pending.
+    _restoreExistingSleepAlarm();
+  }
+
+  /// Reflect an already-scheduled sleep alarm in the UI on startup.
+  void _restoreExistingSleepAlarm() {
+    final existing = AlarmScheduler.sleepAlarm;
+    if (existing == null) return;
+
+    setState(() {
+      _selectedHour = existing.hour;
+      _isAM = existing.isAM;
+      _selectedMinute = (existing.minute ~/ 5).clamp(0, 11);
+      _selectedSound = existing.sound;
+      _flashEnabled = existing.flashEnabled;
+      _alarmIsSet = true;
+    });
+
+    AlarmScheduler.onSleepAlarmDismissed = () {
+      if (mounted) setState(() => _alarmIsSet = false);
+    };
+
+    // Wheels aren't attached during initState.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _syncWheels(animate: false);
+    });
   }
 
   @override
@@ -144,19 +173,24 @@ class _SleepScreenState extends State<SleepScreen>
         snoozeDurationMinutes: 9,
       );
 
-  void _registerSleepAlarm() {
-    AlarmScheduler.setSleepAlarm(_buildSleepAlarmData());
-    // Listen for when the alarm fires and gets dismissed
+  /// Hand the sleep alarm to the OS.
+  ///
+  /// Async now: setSleepAlarm writes to disk and schedules with the platform,
+  /// so callers have to wait before assuming the alarm exists.
+  Future<void> _registerSleepAlarm() async {
+    // Listen for when the alarm fires and gets dismissed. Set before the
+    // await, so a very fast dismissal can't slip past it.
     AlarmScheduler.onSleepAlarmDismissed = () {
       if (mounted) {
         setState(() => _alarmIsSet = false);
       }
     };
+    await AlarmScheduler.setSleepAlarm(_buildSleepAlarmData());
   }
 
-  void _unregisterSleepAlarm() {
-    AlarmScheduler.setSleepAlarm(null);
+  Future<void> _unregisterSleepAlarm() async {
     AlarmScheduler.onSleepAlarmDismissed = null;
+    await AlarmScheduler.setSleepAlarm(null);
   }
 
   // ─── Night clock / sunrise launching ───────────────────────────────────────
@@ -198,7 +232,8 @@ class _SleepScreenState extends State<SleepScreen>
   ///
   /// The app has to stay in the foreground for this to fire — same constraint
   /// as the sunrise itself, which can't drive the backlight from the
-  /// background either.
+  /// background either. The alarm itself is unaffected: that's scheduled with
+  /// the OS and rings whether or not this timer ever runs.
   void _scheduleSunriseLaunch() {
     _cancelSunriseLaunch();
 
@@ -221,22 +256,37 @@ class _SleepScreenState extends State<SleepScreen>
   }
 
   /// Stop on the night clock cancels the sleep alarm too.
-  void _onNightClockStop() {
+  Future<void> _onNightClockStop() async {
     _cancelSunriseLaunch();
-    _unregisterSleepAlarm();
     if (mounted) setState(() => _alarmIsSet = false);
+    await _unregisterSleepAlarm();
   }
 
   /// The user picked a new time from inside the night clock, or snoozed.
-  void _onNightClockAlarmChanged(DateTime newTime) {
+  Future<void> _onNightClockAlarmChanged(DateTime newTime) async {
     if (!mounted) return;
+
+    // The wheels only step in five-minute increments, so an arbitrary time
+    // can't be represented here exactly — a 9-minute snooze landing at 7:09
+    // would show as 7:05.
+    final onWheelGrid = newTime.minute % 5 == 0;
+
     setState(() {
       _setFromHour24(newTime.hour);
       _selectedMinute = (newTime.minute ~/ 5).clamp(0, 11);
       _alarmIsSet = true;
     });
     _syncWheels(animate: false); // the screen is behind the night clock
-    _registerSleepAlarm();
+
+    // Only re-register when the wheels can actually represent the new time.
+    //
+    // A snooze is already scheduled by AlarmScheduler.completeSnooze. Calling
+    // setSleepAlarm here would cancel that snooze and replace it with the
+    // rounded-down time — which, for 7:09 rounding to 7:05, is in the past, so
+    // it would jump to 7:05 *tomorrow* and the user would never be woken.
+    if (onWheelGrid) {
+      await _registerSleepAlarm();
+    }
   }
 
   /// Move the three wheels to match the current values.
@@ -259,7 +309,7 @@ class _SleepScreenState extends State<SleepScreen>
     if (!is24h) go(_amPmController, _isAM ? 0 : 1);
   }
 
-  void _setQuickSleepAlarm(double hours) {
+  Future<void> _setQuickSleepAlarm(double hours) async {
     final now = DateTime.now();
     final alarmTime = now.add(Duration(minutes: (hours * 60).round()));
 
@@ -273,23 +323,27 @@ class _SleepScreenState extends State<SleepScreen>
     });
     _syncWheels();
 
-    _registerSleepAlarm();
+    // Wait for the OS to take the alarm before opening the night clock — the
+    // night clock reads the armed time to drive its countdown and sunrise.
+    await _registerSleepAlarm();
+    if (!mounted) return;
+
     // Same as the Set Sleep Alarm button: a quick button arms the same alarm,
     // so it gets the Night Clock and the sunrise too.
     _launchSleepScreens();
   }
 
-  void _toggleAlarm() {
-    setState(() {
-      _alarmIsSet = !_alarmIsSet;
-    });
+  Future<void> _toggleAlarm() async {
+    final turningOn = !_alarmIsSet;
+    setState(() => _alarmIsSet = turningOn);
 
-    if (_alarmIsSet) {
-      _registerSleepAlarm();
+    if (turningOn) {
+      await _registerSleepAlarm();
+      if (!mounted) return;
       _launchSleepScreens();
     } else {
       _cancelSunriseLaunch();
-      _unregisterSleepAlarm();
+      await _unregisterSleepAlarm();
     }
   }
 
@@ -304,11 +358,13 @@ class _SleepScreenState extends State<SleepScreen>
         ),
       ),
     );
-    if (result != null) {
-      setState(() => _selectedSound = result);
-      if (_alarmIsSet) {
-        AlarmScheduler.setSleepAlarm(_buildSleepAlarmData());
-      }
+    if (result == null || !mounted) return;
+
+    setState(() => _selectedSound = result);
+    // The sound is baked into the scheduled alarm, so changing it means
+    // rescheduling — the OS is holding the old filename otherwise.
+    if (_alarmIsSet) {
+      await _registerSleepAlarm();
     }
   }
 
@@ -624,15 +680,15 @@ class _SleepScreenState extends State<SleepScreen>
             style: TextStyle(color: c.subtext, fontSize: 12,
                 fontWeight: FontWeight.w500, letterSpacing: 1.2)),
         const SizedBox(height: 10),
-        // "6h", "7.5h" and so on are left untranslated — they're numeric
+        // "7h", "8.5h" and so on are left untranslated — they're numeric
         // shorthand that reads the same in every language here.
         Row(
           children: [
-            _quickButton(c, '6h', 6), const SizedBox(width: 10),
             _quickButton(c, '7h', 7), const SizedBox(width: 10),
-            _quickButton(c, '7.5h', 7.5), const SizedBox(width: 10),
             _quickButton(c, '8h', 8), const SizedBox(width: 10),
-            _quickButton(c, '9h', 9),
+            _quickButton(c, '8.5h', 8.5), const SizedBox(width: 10),
+            _quickButton(c, '9h', 9), const SizedBox(width: 10),
+            _quickButton(c, '9.5h', 9.5),
           ],
         ),
       ],

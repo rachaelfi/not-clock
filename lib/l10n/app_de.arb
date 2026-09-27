@@ -8,6 +8,7 @@
 
   "themeAndColors": "Design und Farben",
   "appIcon": "App-Symbol",
+  "appIconNote": "Das Symbol auf deinem Startbildschirm wird sofort aktualisiert. Manche Launcher brauchen einen Moment zum Aktualisieren.",
 
   "twentyFourHourTime": "24-Stunden-Format",
   "twentyFourHourOn": "Uhren zeigen 00–23",

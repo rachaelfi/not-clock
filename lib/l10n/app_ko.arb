@@ -8,6 +8,7 @@
 
   "themeAndColors": "테마 및 색상",
   "appIcon": "앱 아이콘",
+  "appIconNote": "홈 화면 아이콘이 바로 업데이트됩니다. 일부 런처는 새로 고침에 잠시 시간이 걸립니다.",
 
   "twentyFourHourTime": "24시간 형식",
   "twentyFourHourOn": "시계에 00–23으로 표시",

@@ -8,6 +8,7 @@
 
   "themeAndColors": "Theme and colors",
   "appIcon": "App icon",
+  "appIconNote": "Your home screen icon updates right away. Some launchers need a moment to refresh.",
 
   "twentyFourHourTime": "24-hour time",
   "twentyFourHourOn": "Clocks and pickers show 00–23",

@@ -9,7 +9,6 @@ import 'package:not_clock/models/alarm_data.dart';
 import 'package:not_clock/models/app_settings.dart';
 import 'package:not_clock/config/sunrise_presets.dart';
 import 'package:not_clock/services/alarm_scheduler.dart';
-import 'package:not_clock/services/audio_service.dart';
 import 'package:not_clock/services/brightness_service.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -35,6 +34,11 @@ import 'package:not_clock/services/brightness_service.dart';
 //  When the sleep alarm fires, this screen presents it in place, with Snooze
 //  and Dismiss. The scheduler is told to skip its own firing screen, which
 //  would otherwise cover the sky the whole night was building towards.
+//
+//  Audio belongs to the OS now, not to this screen. AlarmScheduler hands the
+//  alarm to the platform, which is what lets it ring with the app closed — so
+//  Snooze and Dismiss here go back through the scheduler rather than touching
+//  AudioService, and both are async because they wait on the platform.
 //
 //  Brightness: this screen owns the backlight from the moment it opens. It
 //  takes it down to a low level so someone who went to bed at 100% isn't lit
@@ -287,7 +291,6 @@ class _NightClockScreenState extends State<NightClockScreen>
     // Hand the alarm back before anything else, so a firing alarm doesn't end
     // up with no screen to present it.
     AlarmScheduler.nightClockHandler = null;
-    if (_firingAlarm != null) AudioService.stop();
 
     _clockTimer?.cancel();
     _dimTimer?.cancel();
@@ -318,43 +321,49 @@ class _NightClockScreenState extends State<NightClockScreen>
     _dimTimer?.cancel();
     BrightnessService.set(1.0);
 
-    // Matches AudioService's own three-minute cutoff, so the buttons don't
-    // sit there forever after the sound has given up.
+    // The OS loops the alarm indefinitely, so nothing stops it on its own.
+    // Give up after three minutes rather than leaving it ringing at an empty
+    // room — _dismissAlarm is what tells the platform to stop.
     _autoDismiss?.cancel();
     _autoDismiss = Timer(const Duration(minutes: 3), () {
       if (mounted && _firingAlarm != null) _dismissAlarm();
     });
   }
 
-  void _dismissAlarm() {
+  Future<void> _dismissAlarm() async {
     final alarm = _firingAlarm;
     if (alarm == null) return;
 
     _autoDismiss?.cancel();
-    AudioService.stop();
+    // Clear this first: awaiting below gives the screen time to be torn down
+    // underneath us, and a second call would double-stop the platform alarm.
+    _firingAlarm = null;
     BrightnessService.restore();
 
-    // Clears the sleep alarm and calls onSleepAlarmDismissed, which flips the
-    // sleep screen's button back to "Set Sleep Alarm" — so there's no need to
-    // also call widget.onStop here.
-    AlarmScheduler.completeDismiss(alarm, isFromSleep: true);
+    // Stops the platform alarm, clears the sleep alarm, and calls
+    // onSleepAlarmDismissed, which flips the sleep screen's button back to
+    // "Set Sleep Alarm" — so there's no need to also call widget.onStop here.
+    await AlarmScheduler.completeDismiss(alarm, isFromSleep: true);
 
-    _firingAlarm = null;
     // You're up. Nothing left for this screen to show.
-    Navigator.of(context).pop();
+    if (mounted) Navigator.of(context).pop();
   }
 
-  void _snoozeAlarm() {
+  Future<void> _snoozeAlarm() async {
     final alarm = _firingAlarm;
     if (alarm == null) return;
 
     _autoDismiss?.cancel();
-    AudioService.stop();
-    final next = AlarmScheduler.completeSnooze(
+
+    // completeSnooze stops the ringing alarm, schedules the next one with the
+    // OS, and returns the time it will actually go off. That round trip has to
+    // finish before the countdown on screen can be trusted.
+    final next = await AlarmScheduler.completeSnooze(
       alarm,
       alarm.snoozeDurationMinutes,
       isFromSleep: true,
     );
+    if (!mounted) return;
 
     setState(() {
       _firingAlarm = null;

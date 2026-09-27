@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:not_clock/l10n/app_localizations.dart';
 import 'package:not_clock/main.dart';
 import 'package:not_clock/models/alarm_data.dart';
-import 'package:not_clock/services/audio_service.dart';
 
 /// Full-screen alarm firing overlay.
 ///
@@ -14,7 +13,6 @@ import 'package:not_clock/services/audio_service.dart';
 /// - Dismiss button to stop the alarm
 ///
 /// The sound loops until dismissed, snoozed, or the 3-minute
-/// auto-stop in AudioService kicks in.
 class AlarmFiringScreen extends StatefulWidget {
   final AlarmData alarm;
   final bool isFromSleep;
@@ -48,11 +46,6 @@ class _AlarmFiringScreenState extends State<AlarmFiringScreen>
   @override
   void initState() {
     super.initState();
-
-    // Start playing the alarm sound
-    if (widget.alarm.sound != 'None') {
-      AudioService.playAlarmSound(widget.alarm.sound);
-    }
 
     // Set up flash animation (0.0 = dark, 1.0 = bright white flash)
     _flashController = AnimationController(
@@ -88,13 +81,11 @@ class _AlarmFiringScreenState extends State<AlarmFiringScreen>
   }
 
   void _dismiss() {
-    AudioService.stop(); // Stop the alarm sound
     Navigator.pop(context); // Pop FIRST so the screen always closes on one tap
     widget.onDismiss(); // Then run cleanup
   }
 
   void _snooze() {
-    AudioService.stop(); // Stop the alarm sound
     Navigator.pop(context);
     widget.onSnooze(widget.alarm.snoozeDurationMinutes);
   }
