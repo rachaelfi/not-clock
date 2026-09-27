@@ -291,6 +291,11 @@ class _TimersScreenState extends State<TimersScreen>
   void _tick() {
     if (!mounted) return;
 
+    // Nothing running means the inline picker is on screen. Rebuilding it five
+    // times a second is both wasteful and destructive — the picker's wheels
+    // reset on every rebuild, which is why it sat locked at 5 minutes.
+    if (_timers.isEmpty) return;
+
     var changed = false;
     for (final data in _timers) {
       if (data.isRunning && data.remaining == Duration.zero) {
@@ -763,20 +768,13 @@ class _InlinePickerViewState extends State<_InlinePickerView> {
     _secondsController = FixedExtentScrollController(initialItem: 0);
   }
 
-  @override
-  void didUpdateWidget(covariant _InlinePickerView oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    _resetPicker();
-  }
-
-  void _resetPicker() {
-    _hours = 0;
-    _minutes = 5;
-    _seconds = 0;
-    if (_hoursController.hasClients) _hoursController.jumpToItem(0);
-    if (_minutesController.hasClients) _minutesController.jumpToItem(5);
-    if (_secondsController.hasClients) _secondsController.jumpToItem(0);
-  }
+  // No didUpdateWidget reset here on purpose.
+  //
+  // It used to snap the wheels back to 0:05:00 whenever the parent rebuilt,
+  // which was rare before and is constant now that a ticker drives the screen.
+  // It isn't needed either: this view only exists while no timers are running,
+  // so starting one destroys it and finishing the last one builds a fresh
+  // State with the defaults already set.
 
   @override
   void dispose() {

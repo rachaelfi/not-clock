@@ -20,6 +20,7 @@ dependencies:
   device_info_plus: ^11.2.0
   screen_brightness: ^2.1.4
   wakelock_plus: ^1.5.0
+  flutter_alarmkit: ^0.4.1
 
   # OS-level alarm scheduling. Uses AlarmManager + a foreground service on
   # Android and a keep-alive audio session on iOS, so alarms ring with the app

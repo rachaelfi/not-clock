@@ -25,7 +25,6 @@ const List<String> timerSounds = [
   'kitchen-timer.mp3',
   'timer.mp3',
   'warning.mp3',
-  'wtf.mp3',
 ];
  
 /// The default alarm sound filename.

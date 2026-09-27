@@ -527,6 +527,8 @@ class AlarmScheduler {
     // notification with Stop, or at the Timers tab showing DONE.
     if (_isTimerId(settings.id)) {
       currentRingingOsId = settings.id;
+      debugPrint('### timer ringing: index=${settings.id - _timerIdBase} '
+          'handler=${timerHandler != null} audio=${settings.assetAudioPath}');
       timerHandler?.call(settings.id - _timerIdBase);
       return;
     }
