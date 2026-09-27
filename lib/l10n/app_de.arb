@@ -209,5 +209,10 @@
   "addCustomSound": "Eigenen Ton hinzufügen",
   "add": "Hinzufügen",
   "soundNamePlaceholder": "Name des Tons (vorläufig)",
-  "noSoundsYet": "Noch keine Töne"
+  "noSoundsYet": "Noch keine Töne",
+  "never": "Nie",
+  "everyDay": "Jeden Tag",
+  "weekdays": "Wochentags",
+  "weekends": "Wochenenden",
+  "hoursMinutes": "{hours} Std. {minutes} Min."
 }

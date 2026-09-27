@@ -5,6 +5,7 @@ import 'package:not_clock/models/alarm_data.dart';
 import 'package:not_clock/screens/alarm_edit_screen.dart';
 import 'package:not_clock/services/alarm_scheduler.dart';
 import 'package:not_clock/services/storage_service.dart';
+import 'package:not_clock/models/alarm_text.dart';
 
 class AlarmsScreen extends StatefulWidget {
   const AlarmsScreen({super.key});
@@ -66,9 +67,7 @@ class _AlarmsScreenState extends State<AlarmsScreen> {
             Icon(Icons.alarm_on, color: c.accentSoft, size: 20),
             const SizedBox(width: 12),
             Text(
-              // NOTE: timeUntilString() still builds an English string inside
-              // AlarmData. See the note at the bottom of this file.
-              t.alarmIn(alarm.timeUntilString()),
+              t.alarmIn(timeUntilLabel(alarm, t)),
               style: TextStyle(color: c.text, fontSize: 14),
             ),
           ],
@@ -132,6 +131,13 @@ class _AlarmsScreenState extends State<AlarmsScreen> {
       }
     });
     await _persistAndSync();
+
+    // Saving an edit re-arms the alarm, so confirm the new time the same way
+    // creating one does. Nothing to confirm for a delete, or for an alarm the
+    // user turned off while editing.
+    if (result is AlarmData && result.enabled && mounted) {
+      _showTimeUntilSnackbar(result);
+    }
   }
 
   PageRouteBuilder<T> _buildSlideRoute<T>(Widget page) {
@@ -151,6 +157,7 @@ class _AlarmsScreenState extends State<AlarmsScreen> {
     final settings = SettingsProvider.of(context);
     final c = settings.colors;
     final t = AppLocalizations.of(context);
+    final locale = Localizations.localeOf(context).toLanguageTag();
 
     return SafeArea(
       child: Padding(
@@ -237,7 +244,8 @@ class _AlarmsScreenState extends State<AlarmsScreen> {
                                       ),
                                       const SizedBox(height: 4),
                                       Text(
-                                        '${alarm.label}  ·  ${alarm.daysString}',
+                                        '${alarm.label}  ·  '
+                                        '${repeatDaysLabel(alarm.repeatDays, t, locale)}',
                                         style: TextStyle(
                                           color: alarm.enabled
                                               ? c.subtext
@@ -277,11 +285,9 @@ class _AlarmsScreenState extends State<AlarmsScreen> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Still English: AlarmData.daysString and AlarmData.timeUntilString
+//  Day names and countdowns are translated through lib/utils/alarm_text.dart.
 //
-//  Both build sentences inside the model — "Mon, Wed, Fri", "Every day",
-//  "2 hours 15 minutes" — so they can't see AppLocalizations and stay English
-//  in Spanish. Fixing that means moving the formatting out of AlarmData into a
-//  helper that takes AppLocalizations, since a model shouldn't need a
-//  BuildContext. Worth doing, but it's its own change.
+//  AlarmData.daysString and timeUntilString still exist and are still English
+//  — they're inside the model, which has no BuildContext and so can't reach
+//  AppLocalizations. Don't use them for anything the user sees.
 // ─────────────────────────────────────────────────────────────────────────────

@@ -209,5 +209,10 @@
   "addCustomSound": "Añadir sonido propio",
   "add": "Añadir",
   "soundNamePlaceholder": "Nombre del sonido (provisional)",
-  "noSoundsYet": "Aún no hay sonidos"
+  "noSoundsYet": "Aún no hay sonidos",
+  "never": "Nunca",
+  "everyDay": "Todos los días",
+  "weekdays": "Entre semana",
+  "weekends": "Fines de semana",
+  "hoursMinutes": "{hours} h {minutes} min"
 }

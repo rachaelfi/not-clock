@@ -209,5 +209,10 @@
   "addCustomSound": "사운드 추가",
   "add": "추가",
   "soundNamePlaceholder": "사운드 이름 (임시)",
-  "noSoundsYet": "아직 추가된 사운드가 없습니다"
+  "noSoundsYet": "아직 추가된 사운드가 없습니다",
+  "never": "안 함",
+  "everyDay": "매일",
+  "weekdays": "주중",
+  "weekends": "주말",
+  "hoursMinutes": "{hours}시간 {minutes}분"
 }

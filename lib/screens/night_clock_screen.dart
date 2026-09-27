@@ -10,6 +10,7 @@ import 'package:not_clock/models/app_settings.dart';
 import 'package:not_clock/config/sunrise_presets.dart';
 import 'package:not_clock/services/alarm_scheduler.dart';
 import 'package:not_clock/services/brightness_service.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  Night Clock
@@ -282,8 +283,7 @@ class _NightClockScreenState extends State<NightClockScreen>
         : _awakeBrightness);
 
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
-    // If you add `wakelock_plus` to pubspec, keep the display on here:
-    //   WakelockPlus.enable();
+    WakelockPlus.enable();
   }
 
   @override
@@ -303,7 +303,7 @@ class _NightClockScreenState extends State<NightClockScreen>
     // this screen left it on.
     BrightnessService.restore();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-    // WakelockPlus.disable();
+    WakelockPlus.disable();
     super.dispose();
   }
 

@@ -1,37 +1,93 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:not_clock/l10n/app_localizations.dart';
 import 'package:not_clock/main.dart';
 import 'package:not_clock/models/alarm_data.dart';
 import 'package:not_clock/screens/alarm_sub/sound_picker.dart';
 import 'package:not_clock/theme/app_theme.dart';
+import 'package:not_clock/services/alarm_scheduler.dart';
 import 'package:not_clock/services/storage_service.dart';
-import 'package:not_clock/services/timer_sound_service.dart';
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Timers
+//
+//  Each running timer is handed to the OS through AlarmScheduler, so it rings
+//  with the app backgrounded or closed — the same mechanism the alarms use.
+//
+//  The countdown on screen is NOT driven by subtracting from a counter every
+//  tick. It's computed from a stored end time, so a timer that spent ten
+//  minutes with the app suspended shows the correct value the moment you come
+//  back, instead of being frozen ten minutes behind.
+//
+//  Running timers are persisted, so killing the app doesn't lose the cards
+//  belonging to alarms the OS is still holding.
+// ─────────────────────────────────────────────────────────────────────────────
 
 // ─── Timer Data Model ─────────────────────────────────────────────────────────
 
 class _TimerData {
-  final String id;
+  /// Slot 0–999. Maps to a fixed platform alarm id, so the OS alarm and this
+  /// card stay associated across restarts.
+  final int index;
+
   String label;
   Duration totalDuration;
-  Duration remaining;
-  bool isRunning;
-  bool isPaused;
+
+  /// Wall-clock moment this timer reaches zero. Null while paused.
+  DateTime? endsAt;
+
+  /// What was left when it was paused. Only meaningful while [endsAt] is null.
+  Duration pausedRemaining;
+
   bool isFinished;
-  Timer? timer;
 
   _TimerData({
-    required this.id,
+    required this.index,
     required this.label,
     required this.totalDuration,
-  })  : remaining = totalDuration,
-        isRunning = false,
-        isPaused = false,
-        isFinished = false;
+    this.endsAt,
+    Duration? pausedRemaining,
+    this.isFinished = false,
+  }) : pausedRemaining = pausedRemaining ?? totalDuration;
+
+  bool get isRunning => endsAt != null && !isFinished;
+  bool get isPaused => endsAt == null && !isFinished;
+
+  Duration get remaining {
+    if (isFinished) return Duration.zero;
+    if (endsAt == null) return pausedRemaining;
+    final left = endsAt!.difference(DateTime.now());
+    return left.isNegative ? Duration.zero : left;
+  }
 
   double get progress {
-    if (totalDuration.inSeconds == 0) return 0;
+    if (totalDuration.inMilliseconds == 0) return 0;
+    if (isFinished) return 1;
     return 1.0 - (remaining.inMilliseconds / totalDuration.inMilliseconds);
+  }
+
+  Map<String, dynamic> toJson() => {
+        'index': index,
+        'label': label,
+        'total': totalDuration.inSeconds,
+        'endsAt': endsAt?.millisecondsSinceEpoch,
+        'paused': pausedRemaining.inSeconds,
+        'finished': isFinished,
+      };
+
+  factory _TimerData.fromJson(Map<String, dynamic> json) {
+    final endsAtMs = json['endsAt'] as int?;
+    return _TimerData(
+      index: json['index'] as int,
+      label: json['label'] as String? ?? '',
+      totalDuration: Duration(seconds: json['total'] as int? ?? 0),
+      endsAt:
+          endsAtMs == null ? null : DateTime.fromMillisecondsSinceEpoch(endsAtMs),
+      pausedRemaining: Duration(seconds: json['paused'] as int? ?? 0),
+      isFinished: json['finished'] as bool? ?? false,
+    );
   }
 }
 
@@ -121,20 +177,62 @@ class TimersScreen extends StatefulWidget {
   State<TimersScreen> createState() => _TimersScreenState();
 }
 
-class _TimersScreenState extends State<TimersScreen> {
+class _TimersScreenState extends State<TimersScreen>
+    with WidgetsBindingObserver {
+  static const String _kRunningTimers = 'timers_running';
+
+  /// A finished timer rings until someone stops it. Cap it while the app is
+  /// alive so a forgotten timer doesn't ring indefinitely. With the app
+  /// suspended nothing here runs, and it's the notification's Stop button —
+  /// or a swipe on Android — that silences it.
+  static const Duration _maxRingTime = Duration(seconds: 90);
+
   final List<_TimerData> _timers = [];
   final List<Duration> _recentTimers = [];
-  int _timerCounter = 0;
+
+  /// Auto-stop timers for anything currently ringing, keyed by slot index.
+  final Map<int, Timer> _ringCutoffs = {};
+
+  /// One ticker repaints every card. Each card computes its own remaining
+  /// time from its end time, so this only drives the display.
+  Timer? _ticker;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    AlarmScheduler.timerHandler = _onTimerFired;
     _loadRecents();
+    _loadRunningTimers();
+    _ticker = Timer.periodic(
+        const Duration(milliseconds: 200), (_) => _tick());
   }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    AlarmScheduler.timerHandler = null;
+    _ticker?.cancel();
+    for (final t in _ringCutoffs.values) {
+      t.cancel();
+    }
+    // Deliberately NOT stopping the platform alarms here. A timer outlives
+    // this screen now — that's the whole point of scheduling it with the OS.
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Coming back from the background: recompute everything from wall-clock
+    // time so cards that finished while we were suspended show as done.
+    if (state == AppLifecycleState.resumed) _tick();
+  }
+
+  // ─── Persistence ───────────────────────────────────────────────────────────
 
   Future<void> _loadRecents() async {
     final saved = await StorageService.loadRecentTimers();
-    if (saved.isNotEmpty) {
+    if (saved.isNotEmpty && mounted) {
       setState(() {
         _recentTimers.addAll(saved.map((secs) => Duration(seconds: secs)));
       });
@@ -146,6 +244,112 @@ class _TimersScreenState extends State<TimersScreen> {
       _recentTimers.map((d) => d.inSeconds).toList(),
     );
   }
+
+  /// Running timers use SharedPreferences directly rather than
+  /// StorageService — they're this screen's private state, and adding a
+  /// method to the shared service for one caller isn't worth it.
+  Future<void> _saveRunningTimers() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+        _kRunningTimers,
+        jsonEncode(_timers.map((t) => t.toJson()).toList()),
+      );
+    } catch (_) {}
+  }
+
+  Future<void> _loadRunningTimers() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_kRunningTimers);
+      if (raw == null) return;
+
+      final decoded = (jsonDecode(raw) as List)
+          .map((e) => _TimerData.fromJson(e as Map<String, dynamic>))
+          .toList();
+
+      if (!mounted) return;
+      setState(() => _timers.addAll(decoded));
+      _tick(); // mark anything that ran out while the app was gone
+    } catch (_) {}
+  }
+
+  // ─── Slot allocation ───────────────────────────────────────────────────────
+
+  /// Lowest index not already taken. The platform alarm id is derived from
+  /// this, so reusing a live one would overwrite someone else's timer.
+  int _nextFreeIndex() {
+    final used = _timers.map((t) => t.index).toSet();
+    for (int i = 0; i < 1000; i++) {
+      if (!used.contains(i)) return i;
+    }
+    return 0; // 1000 concurrent timers; something has gone very wrong
+  }
+
+  // ─── Ticking ───────────────────────────────────────────────────────────────
+
+  void _tick() {
+    if (!mounted) return;
+
+    var changed = false;
+    for (final data in _timers) {
+      if (data.isRunning && data.remaining == Duration.zero) {
+        data.isFinished = true;
+        data.endsAt = null;
+        _startRingCutoff(data.index);
+        changed = true;
+      }
+    }
+
+    setState(() {}); // repaint the countdowns
+    if (changed) _saveRunningTimers();
+  }
+
+  /// The platform told us a timer went off. Usually the ticker has already
+  /// noticed, but this catches the case where the app was resumed by the
+  /// notification itself.
+  _TimerData? _timerAt(int index) {
+    for (final t in _timers) {
+      if (t.index == index) return t;
+    }
+    return null;
+  }
+
+  void _onTimerFired(int index) {
+    if (!mounted) return;
+
+    // Held in a final local: Dart won't carry a null check into a closure for
+    // a variable that gets reassigned, so setState below would still see this
+    // as nullable if it were a loop variable.
+    final data = _timerAt(index);
+
+    if (data == null) {
+      // Card is gone but the OS still has the alarm — silence it.
+      AlarmScheduler.stopTimer(index);
+      return;
+    }
+
+    setState(() {
+      data.isFinished = true;
+      data.endsAt = null;
+    });
+    _startRingCutoff(index);
+    _saveRunningTimers();
+  }
+
+  void _startRingCutoff(int index) {
+    _ringCutoffs[index]?.cancel();
+    _ringCutoffs[index] = Timer(_maxRingTime, () {
+      AlarmScheduler.stopTimer(index);
+      _ringCutoffs.remove(index);
+    });
+  }
+
+  void _clearRingCutoff(int index) {
+    _ringCutoffs.remove(index)?.cancel();
+  }
+
+  // ─── Timer lifecycle ───────────────────────────────────────────────────────
 
   String _formatDuration(Duration d) {
     final h = d.inHours;
@@ -162,82 +366,73 @@ class _TimersScreenState extends State<TimersScreen> {
     _saveRecents();
   }
 
-  /// True while any timer on screen is sitting at zero. The sound belongs to
-  /// the group, not to one card, so it only stops once none are left ringing.
-  bool get _anyFinished => _timers.any((t) => t.isFinished);
+  Future<void> _startTimerFromDuration(Duration duration) async {
+    if (duration <= Duration.zero) return;
 
-  void _stopSoundIfNothingRinging() {
-    if (!_anyFinished) TimerSoundService.stop();
-  }
-
-  void _startTimerFromDuration(Duration duration) {
-    _timerCounter++;
-    final timerData = _TimerData(
-      id: 'timer_$_timerCounter',
+    final data = _TimerData(
+      index: _nextFreeIndex(),
       label: formatDurationShort(duration),
       totalDuration: duration,
+      endsAt: DateTime.now().add(duration),
     );
 
     _addToRecents(duration);
-    _runTimer(timerData);
+    setState(() => _timers.insert(0, data));
 
+    await _schedule(data);
+    await _saveRunningTimers();
+  }
+
+  /// Hand a running timer to the OS.
+  Future<void> _schedule(_TimerData data) async {
+    final endsAt = data.endsAt;
+    if (endsAt == null) return;
+    await AlarmScheduler.scheduleTimer(
+      index: data.index,
+      at: endsAt,
+      label: data.label,
+      sound: SettingsProvider.read(context).timerSound,
+    );
+  }
+
+  Future<void> _pauseTimer(_TimerData data) async {
     setState(() {
-      _timers.insert(0, timerData);
+      data.pausedRemaining = data.remaining;
+      data.endsAt = null;
     });
+    await AlarmScheduler.stopTimer(data.index);
+    await _saveRunningTimers();
   }
 
-  void _runTimer(_TimerData data) {
-    data.isRunning = true;
-    data.isPaused = false;
-    data.timer = Timer.periodic(const Duration(milliseconds: 100), (_) {
-      if (!mounted) return;
-      setState(() {
-        final newRemaining =
-            data.remaining - const Duration(milliseconds: 100);
-        if (newRemaining <= Duration.zero) {
-          data.remaining = Duration.zero;
-          data.isRunning = false;
-          data.isFinished = true;
-          data.timer?.cancel();
-          // Loops until cancelled, or 90 seconds, whichever comes first.
-          TimerSoundService.play(
-              SettingsProvider.read(context).timerSound);
-        } else {
-          data.remaining = newRemaining;
-        }
-      });
-    });
-  }
-
-  void _pauseTimer(_TimerData data) {
-    data.timer?.cancel();
+  Future<void> _resumeTimer(_TimerData data) async {
     setState(() {
-      data.isRunning = false;
-      data.isPaused = true;
-    });
-  }
-
-  void _resumeTimer(_TimerData data) {
-    _runTimer(data);
-    setState(() {});
-  }
-
-  void _cancelTimer(_TimerData data) {
-    data.timer?.cancel();
-    setState(() {
-      _timers.remove(data);
-    });
-    _stopSoundIfNothingRinging();
-  }
-
-  void _restartTimer(_TimerData data) {
-    data.timer?.cancel();
-    setState(() {
-      data.remaining = data.totalDuration;
+      data.endsAt = DateTime.now().add(data.pausedRemaining);
       data.isFinished = false;
     });
-    _stopSoundIfNothingRinging();
-    _runTimer(data);
+    await _schedule(data);
+    await _saveRunningTimers();
+  }
+
+  Future<void> _cancelTimer(_TimerData data) async {
+    _clearRingCutoff(data.index);
+    setState(() => _timers.remove(data));
+    await AlarmScheduler.stopTimer(data.index);
+    await _saveRunningTimers();
+  }
+
+  Future<void> _restartTimer(_TimerData data) async {
+    _clearRingCutoff(data.index);
+    // Stop the ring before rescheduling — the platform refuses a set() and a
+    // stop() racing on the same id.
+    await AlarmScheduler.stopTimer(data.index);
+    if (!mounted) return;
+    setState(() {
+      data.isFinished = false;
+      data.pausedRemaining = data.totalDuration;
+      data.endsAt = DateTime.now().add(data.totalDuration);
+    });
+    await _schedule(data);
+    await _saveRunningTimers();
   }
 
   void _openAddTimerModal() async {
@@ -250,21 +445,10 @@ class _TimersScreenState extends State<TimersScreen> {
       builder: (ctx) => _AddTimerModal(recentTimers: _recentTimers),
     );
 
-    if (result != null) {
-      _startTimerFromDuration(result);
-    }
+    if (result != null) await _startTimerFromDuration(result);
   }
 
-  @override
-  void dispose() {
-    for (final t in _timers) {
-      t.timer?.cancel();
-    }
-    // Leaving the tab shouldn't leave a timer ringing with nothing on screen
-    // to silence it.
-    TimerSoundService.stop();
-    super.dispose();
-  }
+  // ─── Build ─────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -465,7 +649,7 @@ class _TimersScreenState extends State<TimersScreen> {
           ClipRRect(
             borderRadius: BorderRadius.circular(4),
             child: LinearProgressIndicator(
-              value: data.progress,
+              value: data.progress.clamp(0.0, 1.0),
               backgroundColor: c.divider,
               color: progressColor,
               minHeight: 4,

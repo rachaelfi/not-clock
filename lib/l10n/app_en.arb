@@ -190,7 +190,6 @@
   },
   "timerSound": "Timer sound",
   "repeatEvery": "Repeat every",
-  "reset": "Reset",
   "sectionBackground": "Background",
   "sectionAccent": "Accent",
   "accentHint": "Used for buttons, headers, and anything that was purple.",
@@ -211,5 +210,16 @@
   "addCustomSound": "Add Custom Sound",
   "add": "Add",
   "soundNamePlaceholder": "Sound name (placeholder)",
-  "noSoundsYet": "No sounds added yet"
+  "noSoundsYet": "No sounds added yet",
+  "never": "Never",
+  "everyDay": "Every day",
+  "weekdays": "Weekdays",
+  "weekends": "Weekends",
+  "hoursMinutes": "{hours} h {minutes} min",
+  "@hoursMinutes": {
+    "placeholders": {
+      "hours": { "type": "int" },
+      "minutes": { "type": "int" }
+    }
+  }
 }

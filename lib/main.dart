@@ -108,6 +108,7 @@ class _NotificationStringsState extends State<_NotificationStrings> {
     AlarmScheduler.notificationTitle = t.alarmDefaultLabel;
     AlarmScheduler.notificationStopLabel = t.dismiss;
     AlarmScheduler.notificationSnoozeLabel = t.snooze;
+    AlarmScheduler.timerNotificationTitle = t.timersTitle;
 
     // Rewrite the pending notifications so a language change takes effect on
     // alarms that were scheduled before it.
@@ -202,6 +203,7 @@ class _MainScreenState extends State<MainScreen> {
   Widget build(BuildContext context) {
     // Listen so all tabs rebuild on settings change
     final c = SettingsProvider.of(context).colors;
+    final t = AppLocalizations.of(context);
 
     const screens = <Widget>[
       WorldClockScreen(),
@@ -230,11 +232,13 @@ class _MainScreenState extends State<MainScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _buildNavItem(c, Icons.language, 'World Clock', 0),
-                _buildNavItem(c, Icons.alarm, 'Alarms', 1),
-                _buildNavItem(c, Icons.bedtime_rounded, 'Sleep', 2),
-                _buildNavItem(c, Icons.timer_outlined, 'Stopwatch', 3),
-                _buildNavItem(c, Icons.hourglass_bottom_rounded, 'Timers', 4),
+                // Same strings as each tab's own heading, so the nav and the
+                // screen it opens always agree.
+                _buildNavItem(c, Icons.language, t.worldClockTitle, 0),
+                _buildNavItem(c, Icons.alarm, t.alarmsTitle, 1),
+                _buildNavItem(c, Icons.bedtime_rounded, t.sleepTitle, 2),
+                _buildNavItem(c, Icons.timer_outlined, t.stopwatchTitle, 3),
+                _buildNavItem(c, Icons.hourglass_bottom_rounded, t.timersTitle, 4),
               ],
             ),
           ),
@@ -257,8 +261,13 @@ class _MainScreenState extends State<MainScreen> {
           children: [
             Icon(icon, color: color, size: 24),
             const SizedBox(height: 4),
+            // Translated labels run longer than the English ones — "Reloj
+            // mundial", "Cronómetro" — and the tab is only 64px wide.
             Text(
               label,
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 color: color,
                 fontSize: 10,

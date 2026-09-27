@@ -209,5 +209,10 @@
   "addCustomSound": "Eigen geluid toevoegen",
   "add": "Voeg toe",
   "soundNamePlaceholder": "Naam van geluid (voorlopig)",
-  "noSoundsYet": "Nog geen geluiden"
+  "noSoundsYet": "Nog geen geluiden",
+  "never": "Nooit",
+  "everyDay": "Elke dag",
+  "weekdays": "Doordeweeks",
+  "weekends": "Weekenden",
+  "hoursMinutes": "{hours} u {minutes} min"
 }

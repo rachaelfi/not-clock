@@ -46,6 +46,20 @@ class AlarmScheduler {
   /// (max 99,999,999) so it can never collide with a user alarm.
   static const int sleepAlarmId = 100000000;
 
+  /// Countdown timers get their own band of platform ids.
+  ///
+  /// Alarms occupy `id * 10 + slot`, so at most 999,999,998; the sleep alarm
+  /// takes 1,000,000,000–1,000,000,008. Starting timers at 1.1 billion keeps
+  /// them clear of both and still inside a 32-bit int, which is what Android
+  /// notification ids are.
+  static const int _timerIdBase = 1100000000;
+  static const int _timerIdCount = 1000;
+
+  static int timerOsId(int index) => _timerIdBase + index;
+
+  static bool _isTimerId(int id) =>
+      id >= _timerIdBase && id < _timerIdBase + _timerIdCount;
+
   static const String _kSleepAlarm = 'scheduler_sleep_alarm';
 
   // ── Wiring set up by the app ─────────────────────────────────────────────
@@ -60,6 +74,11 @@ class AlarmScheduler {
   /// Lets the sleep screen reset itself once its alarm is done.
   static VoidCallback? onSleepAlarmDismissed;
 
+  /// Called when a countdown timer's platform alarm goes off, with the timer's
+  /// index. Timers get no firing screen — the Timers tab marks the card DONE
+  /// and the notification carries Stop.
+  static void Function(int index)? timerHandler;
+
   /// Notification text. Set these from AppLocalizations in main.dart so the
   /// lock-screen notification matches the app's language — the notification
   /// is built when the alarm is *scheduled*, not when it rings, so changing
@@ -67,6 +86,7 @@ class AlarmScheduler {
   static String notificationTitle = 'Alarm';
   static String notificationStopLabel = 'Stop';
   static String notificationSnoozeLabel = 'Snooze';
+  static String timerNotificationTitle = 'Timer';
 
   // ── Internal state ───────────────────────────────────────────────────────
 
@@ -176,6 +196,22 @@ class AlarmScheduler {
 
     for (final current in existing) {
       final want = desired[current.id];
+
+      // Countdown timers are managed by the Timers screen, not by this diff.
+      if (_isTimerId(current.id)) continue;
+
+      // NEVER touch an alarm that is ringing right now.
+      //
+      // syncAll runs on every app resume — and the app usually resumes
+      // *because* an alarm went off and the user tapped the notification. A
+      // ringing alarm's scheduled time is in the past, so the diff below would
+      // decide it needs rescheduling, call Alarm.stop() on it, and silence the
+      // ring before the firing screen ever appeared.
+      if (current.id == currentRingingOsId ||
+          await Alarm.isRinging(current.id)) {
+        desired.remove(current.id);
+        continue;
+      }
 
       // A live snooze is never in `desired`. Keep it.
       if (_slotOf(current.id) == _slotSnooze && current.dateTime.isAfter(now)) {
@@ -340,22 +376,96 @@ class AlarmScheduler {
   }
 
   // ─────────────────────────────────────────────────────────────────────────
+  //  Countdown timers
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /// Hand a countdown timer to the OS so it rings with the app closed.
+  ///
+  /// [index] is the timer's slot, 0–999, and maps to a fixed platform id.
+  /// Re-scheduling the same index replaces the previous one.
+  static Future<void> scheduleTimer({
+    required int index,
+    required DateTime at,
+    required String label,
+    required String sound,
+  }) async {
+    await Alarm.set(
+      alarmSettings: AlarmSettings(
+        id: timerOsId(index),
+        dateTime: at,
+        assetAudioPath: (sound.isEmpty || sound == 'None')
+            ? null
+            : 'assets/sounds/timers/$sound',
+        loopAudio: true,
+        vibrate: true,
+        // A timer is not a wake-up. It shouldn't seize a locked screen the way
+        // an alarm does — a notification is the right weight for it.
+        androidFullScreenIntent: false,
+        warningNotificationOnKill: false,
+        androidStopAlarmOnTermination: false,
+        // A timer nobody answered for five minutes has missed its moment.
+        androidStaleAfter: const Duration(minutes: 5),
+        volumeSettings: const VolumeSettings.fixed(volumeEnforced: false),
+        notificationSettings: NotificationSettings(
+          title: timerNotificationTitle,
+          body: label,
+          stopButton: notificationStopLabel,
+          // Unlike an alarm, swiping a finished timer away should silence it.
+          androidStopAlarmOnDismiss: true,
+        ),
+        payload: jsonEncode({'timer': true, 'index': index}),
+      ),
+    );
+  }
+
+  /// Cancel or silence the timer in [index].
+  static Future<void> stopTimer(int index) async {
+    final osId = timerOsId(index);
+    if (currentRingingOsId == osId) currentRingingOsId = null;
+    await Alarm.stop(osId);
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
   //  Ringing
   // ─────────────────────────────────────────────────────────────────────────
 
   static Future<void> _onRinging(dynamic event) async {
     final ringing = _unwrap(event);
 
+    // Leave this in until the firing screen is confirmed working on both
+    // platforms — it's the only window into what the platform is emitting.
+    debugPrint('### ringing: ${event.runtimeType} -> ${ringing.length} alarm(s)'
+        '${ringing.isEmpty ? '' : ' id=${ringing.first.id}'}'
+        ' isFiring=$_isFiring nav=${navigatorKey?.currentState != null}');
+
     if (ringing.isEmpty) {
       _isFiring = false;
       currentRingingOsId = null;
       return;
     }
-    if (_isFiring) return;
+
+    // Already showing a screen for this same alarm. A different alarm ringing
+    // while one is up should still take over, so compare ids rather than
+    // bailing on the flag alone — otherwise a stuck flag (the user dismissed
+    // from the notification, so no in-app callback ever ran) would suppress
+    // the firing screen for the rest of the session.
+    if (_isFiring && currentRingingOsId == ringing.first.id) return;
 
     final settings = ringing.first;
+
+    // A countdown timer finishing. No firing screen: the user is looking at a
+    // notification with Stop, or at the Timers tab showing DONE.
+    if (_isTimerId(settings.id)) {
+      currentRingingOsId = settings.id;
+      timerHandler?.call(settings.id - _timerIdBase);
+      return;
+    }
+
     final decoded = await _decode(settings);
-    if (decoded == null) return;
+    if (decoded == null) {
+      debugPrint('### ringing: could not decode alarm ${settings.id}');
+      return;
+    }
 
     _isFiring = true;
     currentRingingOsId = settings.id;
