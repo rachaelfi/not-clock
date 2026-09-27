@@ -2,13 +2,16 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:alarm/alarm.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:not_clock/models/alarm_data.dart';
 import 'package:not_clock/screens/alarm_firing_screen.dart';
+import 'package:not_clock/services/audio_service.dart';
 import 'package:not_clock/services/storage_service.dart';
+import 'package:not_clock/services/timer_sound_service.dart';
 
 /// Schedules alarms with the operating system so they ring when the app is
 /// backgrounded, closed, or the phone is locked.
@@ -105,6 +108,22 @@ class AlarmScheduler {
 
   static bool _isFiring = false;
 
+  // ── Web fallback ─────────────────────────────────────────────────────────
+  //
+  // The `alarm` plugin is native-only; on web its method channels throw, and
+  // an unguarded Alarm.init() in main() would stop the app booting at all.
+  //
+  // So on web everything routes through ordinary Dart timers instead. Alarms
+  // still fire, the firing screen still appears, and audio still plays through
+  // AudioService — which is what makes `flutter run -d chrome` worth using for
+  // UI work. Nothing survives a page reload and nothing fires with the tab
+  // closed; that reliability is the entire point of the native path, and it
+  // can't be tested here.
+
+  static final Map<int, Timer> _webTimers = {};
+
+  static bool get _useWebFallback => kIsWeb;
+
   // ── Id helpers ───────────────────────────────────────────────────────────
 
   static int _osId(int baseId, int slot) => baseId * 10 + slot;
@@ -123,6 +142,14 @@ class AlarmScheduler {
     navigatorKey = navKey;
     if (_started) return;
     _started = true;
+
+    if (_useWebFallback) {
+      // No plugin, no permissions, no ring stream — the Dart timers set up by
+      // syncAll call the firing path directly.
+      _sleepAlarm = await _loadSleepAlarm();
+      await syncAll();
+      return;
+    }
 
     await Alarm.init();
     await _requestPermissions();
@@ -189,6 +216,20 @@ class AlarmScheduler {
     final sleep = _sleepAlarm;
     if (sleep != null) {
       _planFor(sleep, isFromSleep: true, now: now, into: desired);
+    }
+
+    // On web there's nothing persisted to diff against, so rebuild the lot.
+    // A snooze in progress is lost when this runs; acceptable in a browser,
+    // where the schedule dies on reload anyway.
+    if (_useWebFallback) {
+      for (final t in _webTimers.values) {
+        t.cancel();
+      }
+      _webTimers.clear();
+      for (final entry in desired.entries) {
+        await _set(entry.key, entry.value);
+      }
+      return;
     }
 
     // 2. What *is* scheduled.
@@ -264,7 +305,7 @@ class AlarmScheduler {
       {bool keepSnooze = false}) async {
     for (int slot = 0; slot <= _slotSnooze; slot++) {
       if (keepSnooze && slot == _slotSnooze) continue;
-      await Alarm.stop(_osId(alarm.id, slot));
+      await _stop(_osId(alarm.id, slot));
     }
   }
 
@@ -321,6 +362,17 @@ class AlarmScheduler {
 
   static Future<void> _set(int osId, _Planned plan) async {
     final alarm = plan.alarm;
+
+    if (_useWebFallback) {
+      _webSchedule(osId, plan.at, () async {
+        if (alarm.sound.isNotEmpty && alarm.sound != 'None') {
+          await AudioService.playAlarmSound(alarm.sound);
+        }
+        currentRingingOsId = osId;
+        await _present(alarm, isFromSleep: plan.isFromSleep);
+      });
+      return;
+    }
 
     await Alarm.set(
       alarmSettings: AlarmSettings(
@@ -389,6 +441,15 @@ class AlarmScheduler {
     required String label,
     required String sound,
   }) async {
+    if (_useWebFallback) {
+      _webSchedule(timerOsId(index), at, () async {
+        currentRingingOsId = timerOsId(index);
+        await TimerSoundService.play(sound);
+        timerHandler?.call(index);
+      });
+      return;
+    }
+
     await Alarm.set(
       alarmSettings: AlarmSettings(
         id: timerOsId(index),
@@ -422,7 +483,7 @@ class AlarmScheduler {
   static Future<void> stopTimer(int index) async {
     final osId = timerOsId(index);
     if (currentRingingOsId == osId) currentRingingOsId = null;
-    await Alarm.stop(osId);
+    await _stop(osId);
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -437,6 +498,15 @@ class AlarmScheduler {
     debugPrint('### ringing: ${event.runtimeType} -> ${ringing.length} alarm(s)'
         '${ringing.isEmpty ? '' : ' id=${ringing.first.id}'}'
         ' isFiring=$_isFiring nav=${navigatorKey?.currentState != null}');
+
+    // If the count is 0 while the phone is audibly ringing, the shape of what
+    // the platform emitted is the thing to look at.
+    if (ringing.isEmpty && event != null) {
+      try {
+        debugPrint('### ringing: empty — alarms field is '
+            '${(event as dynamic).alarms.runtimeType}');
+      } catch (_) {}
+    }
 
     if (ringing.isEmpty) {
       _isFiring = false;
@@ -467,11 +537,20 @@ class AlarmScheduler {
       return;
     }
 
-    _isFiring = true;
     currentRingingOsId = settings.id;
+    await _present(decoded.alarm, isFromSleep: decoded.isFromSleep);
+  }
 
-    final alarm = decoded.alarm;
-    final isFromSleep = decoded.isFromSleep;
+  /// Put the ringing alarm in front of the user: either hand it to the night
+  /// clock, or push the firing screen.
+  ///
+  /// Shared by the platform ring stream and the web fallback, so both show the
+  /// same thing.
+  static Future<void> _present(
+    AlarmData alarm, {
+    required bool isFromSleep,
+  }) async {
+    _isFiring = true;
 
     // The night clock is already showing a full-screen wake-up view; let it
     // handle the alarm rather than stacking the firing screen over its sky.
@@ -511,6 +590,35 @@ class AlarmScheduler {
     _isFiring = false;
   }
 
+  // ─── Web fallback plumbing ─────────────────────────────────────────────────
+
+  /// Run [onFire] at [at] using an in-app timer, replacing any timer already
+  /// registered under [osId].
+  static void _webSchedule(int osId, DateTime at, Future<void> Function() onFire) {
+    _webTimers.remove(osId)?.cancel();
+    final delay = at.difference(DateTime.now());
+    _webTimers[osId] = Timer(delay.isNegative ? Duration.zero : delay, () {
+      _webTimers.remove(osId);
+      onFire();
+    });
+  }
+
+  /// Cancel one scheduled alarm, whichever mechanism is holding it.
+  static Future<void> _stop(int osId) async {
+    if (_useWebFallback) {
+      _webTimers.remove(osId)?.cancel();
+      // The platform owns alarm audio natively, but on web this service is
+      // what's playing, so it's what has to be silenced.
+      if (_isTimerId(osId)) {
+        await TimerSoundService.stop();
+      } else {
+        await AudioService.stop();
+      }
+      return;
+    }
+    await Alarm.stop(osId);
+  }
+
   /// Poll for the navigator until the widget tree exists.
   ///
   /// Gives up after ~10 seconds. If it does, the platform is still ringing
@@ -532,12 +640,24 @@ class AlarmScheduler {
   static List<AlarmSettings> _unwrap(dynamic event) {
     if (event == null) return const [];
     if (event is AlarmSettings) return [event];
-    if (event is List) return event.cast<AlarmSettings>();
+
+    // Iterable, not List: the type is called AlarmSet for a reason — its
+    // `alarms` is a Set. Casting it to List threw, the catch swallowed it,
+    // and every ring looked like "0 alarms" while the phone was audibly
+    // ringing. whereType also drops anything unexpected instead of throwing.
+    if (event is Iterable) return event.whereType<AlarmSettings>().toList();
+
     try {
-      return (event.alarms as List).cast<AlarmSettings>();
-    } catch (_) {
-      return const [];
+      final alarms = event.alarms;
+      if (alarms is Iterable) {
+        return alarms.whereType<AlarmSettings>().toList();
+      }
+      if (alarms is AlarmSettings) return [alarms];
+    } catch (e) {
+      debugPrint('### ringing: cannot read alarms from '
+          '${event.runtimeType} — $e');
     }
+    return const [];
   }
 
   /// Rebuild the alarm from the platform payload, falling back to storage.
@@ -583,9 +703,9 @@ class AlarmScheduler {
     currentRingingOsId = null;
     _isFiring = false;
 
-    if (osId != null) await Alarm.stop(osId);
+    if (osId != null) await _stop(osId);
     // Kill any snooze left over from an earlier press in the same wake-up.
-    await Alarm.stop(_osId(alarm.id, _slotSnooze));
+    await _stop(_osId(alarm.id, _slotSnooze));
 
     if (isFromSleep) {
       _sleepAlarm = null;
@@ -615,7 +735,7 @@ class AlarmScheduler {
     currentRingingOsId = null;
     _isFiring = false;
 
-    if (osId != null) await Alarm.stop(osId);
+    if (osId != null) await _stop(osId);
 
     final at = DateTime.now().add(Duration(minutes: minutes));
     await _set(
